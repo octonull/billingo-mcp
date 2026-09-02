@@ -34,15 +34,15 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@types/node": "22.10.2",
-    "@vitest/coverage-v8": "4.1.10",
+    "@types/node": "22.20.1",
+    "@vitest/coverage-v8": "4.1.11",
     "changelogen": "0.6.2",
-    "eslint": "10.7.0",
+    "eslint": "10.9.1",
     "msw": "2.15.0",
     "openapi-typescript": "7.13.0",
-    "prettier": "3.9.5",
+    "prettier": "3.9.6",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.64.0",
-    "vitest": "4.1.10"
+    "typescript-eslint": "8.68.0",
+    "vitest": "4.1.11"
   }
 }
