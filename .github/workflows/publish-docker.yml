@@ -1,0 +1,62 @@
+name: Publish Docker Image to ghcr.io
+
+on:
+  # Called by Publish Release right after it tags a version.
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to build & push'
+        required: true
+        type: string
+      version:
+        description: 'Released version (vX.Y.Z) — also tagged as latest. Omit for an ad-hoc build.'
+        required: false
+        type: string
+  # Also runnable by hand for an ad-hoc image from any commit.
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA to build & push to ghcr.io'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit_sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine image tags
+        id: tags
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}"
+          SHORT_SHA=$(git rev-parse --short=9 "${{ inputs.commit_sha }}")
+          TAGS="${IMAGE}:${SHORT_SHA}"
+          if [ -n "${{ inputs.version }}" ]; then
+            TAGS="${TAGS},${IMAGE}:${{ inputs.version }},${IMAGE}:latest"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}

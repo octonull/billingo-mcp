@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.env
+*.log
+/.idea
+
+# Design and plan documents: kept locally, not tracked.
+docs/

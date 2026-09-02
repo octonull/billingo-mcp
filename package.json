@@ -1,0 +1,48 @@
+{
+  "name": "@billingo/billingo-mcp",
+  "version": "0.1.0",
+  "description": "Official Billingo MCP server",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "billingo-mcp": "./dist/transports/stdio.js"
+  },
+  "files": [
+    "dist",
+    "spec"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "gen:types": "openapi-typescript spec/billingo-3.0.15.json -o src/billingo/types.gen.ts",
+    "start:stdio": "node dist/transports/stdio.js",
+    "start:http": "node dist/transports/http.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "4.1.10",
+    "changelogen": "0.6.2",
+    "eslint": "10.7.0",
+    "msw": "2.15.0",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.9.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10"
+  }
+}

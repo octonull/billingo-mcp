@@ -1,0 +1,71 @@
+name: Release Publish NPM and ghcr.io
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  id-token: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v7
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm test
+
+      - name: Tag the current package.json version
+        id: tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            EXISTING_COMMIT=$(git rev-list -n 1 "$TAG")
+            HEAD_COMMIT=$(git rev-parse HEAD)
+            if [ "$EXISTING_COMMIT" != "$HEAD_COMMIT" ]; then
+              echo "::error::Tag $TAG already exists but points at a different commit ($EXISTING_COMMIT, not $HEAD_COMMIT) — this version may already have been released from a different state."
+              exit 1
+            fi
+            echo "Tag $TAG already exists and points at the current commit — probably a retry after a failed publish. Skipping tag creation."
+          else
+            git tag "$TAG"
+            # Tags aren't covered by the master branch ruleset (only branch pushes are),
+            # so this push doesn't need the bypass that a direct commit push would.
+            git push origin "$TAG"
+          fi
+
+      # npm publish isn't wired up yet: the package name/npm org still needs to be decided
+      # (see CLAUDE.md "Known gaps"), and the NPM_TOKEN secret isn't set. Uncomment once
+      # both exist. Run this only after merging the "Prepare Release" PR into master.
+      # - name: Publish to npm
+      #   run: npm publish --provenance --access public
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-docker:
+    needs: publish
+    uses: ./.github/workflows/publish-docker.yml
+    with:
+      commit_sha: ${{ github.sha }}
+      version: ${{ needs.publish.outputs.version }}
+    secrets: inherit

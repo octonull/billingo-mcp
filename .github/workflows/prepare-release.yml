@@ -1,0 +1,52 @@
+name: Release Prepare (Version Bump + PR)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # changelogen needs the full history to find the previous tag and the commits
+          # since it.
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm test
+
+      - name: Bump version and update CHANGELOG.md (no commit, no tag yet)
+        id: bump
+        run: |
+          npx changelogen --release --no-commit --no-tag
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the release PR
+        uses: peter-evans/create-pull-request@v8
+        with:
+          # Fixed branch name (not versioned) so a re-run before the previous release PR is
+          # merged updates the same PR instead of opening a second, now-stale one.
+          branch: release
+          base: master
+          title: 'chore(release): v${{ steps.bump.outputs.version }}'
+          commit-message: 'chore(release): v${{ steps.bump.outputs.version }}'
+          body: >-
+            Automated version bump + CHANGELOG.md update from `changelogen`, opened by the
+            "Prepare Release" workflow. Merge this to update `master`, then run the
+            "Publish Release" workflow to tag and publish v${{ steps.bump.outputs.version }}.
+          delete-branch: true

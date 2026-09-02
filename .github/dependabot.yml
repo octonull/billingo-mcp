@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      # TypeScript is pinned to 5.9.3 and cannot be raised while these two hold:
+      #   openapi-typescript@7 declares  peer typescript@"^5.x"
+      #   typescript-eslint@8   declares  peer typescript@">=4.8.4 <6.1.0"
+      # Anything outside 5.x fails `npm ci` with ERESOLVE, which breaks install, CI and
+      # the Docker build. Dependabot raised this to 7.0.2 once already; CI went red and
+      # the PR was merged anyway, leaving master uninstallable. Lift this only once both
+      # packages support the newer major.
+      - dependency-name: typescript
+        versions: ['>=6']
+      # Keep the @types/node major in step with the Node the runtime image ships
+      # (distroless nodejs22) and with engines.node (>=22). A newer major types against
+      # APIs the runtime does not have.
+      - dependency-name: '@types/node'
+        versions: ['>=23']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # The build stage must match the distroless nodejs22 runtime stage. Dependabot
+      # bumped the build image to node:26 while the runtime stayed on nodejs22. Bump
+      # both together, by hand.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
