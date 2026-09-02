@@ -1,8 +1,10 @@
 <p align="center"><a href="https://billingo.hu" target="_blank"><img src="https://app.billingo.hu/v3/images_accelerate/billingo-logo-2025.svg" width="250"></a></p>
 
 <p align="center">
-<!--<a href="https://github.com/octonull/billingo-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/octonull/billingo-mcp/ci.yml?branch=master&label=CI&logo=github" alt="CI"></a>-->
-<!--<a href="https://github.com/octonull/billingo-mcp/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/octonull/billingo-mcp/codeql.yml?branch=master&label=CodeQL&logo=github" alt="CodeQL"></a>-->
+<a href="https://github.com/octonull/billingo-mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/octonull/billingo-mcp/ci.yml?branch=master&label=CI&logo=github" alt="CI"></a>
+<!-- No CodeQL badge: that workflow is workflow_dispatch-only (manual), so a status
+     badge for it wouldn't reflect an ongoing, automatic signal — it'd just show
+     whenever someone last ran it by hand. -->
 <a href="https://www.npmjs.com/package/@billingo/billingo-mcp"><img src="https://img.shields.io/npm/v/@billingo/billingo-mcp?logo=npm&label=npm" alt="npm version"></a>
 <a href="https://github.com/octonull/billingo-mcp/pkgs/container/billingo-mcp"><img src="https://img.shields.io/badge/ghcr.io-image-blue?logo=docker&logoColor=white" alt="Docker image on ghcr.io"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue" alt="Licence: MIT"></a>
