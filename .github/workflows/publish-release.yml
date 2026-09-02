@@ -54,13 +54,15 @@ jobs:
             git push origin "$TAG"
           fi
 
-      # npm publish isn't wired up yet: the package name/npm org still needs to be decided
-      # (see CLAUDE.md "Known gaps"), and the NPM_TOKEN secret isn't set. Uncomment once
-      # both exist. Run this only after merging the "Prepare Release" PR into master.
-      # - name: Publish to npm
-      #   run: npm publish --provenance --access public
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Temporary: publishes with an npm Automation token (NPM_TOKEN) so the very first
+      # publish can create the @billingo/billingo-mcp package. Once it exists, configure
+      # a Trusted Publisher for this workflow on npmjs.com (package Settings > Trusted
+      # publishing), then delete the NPM_TOKEN secret and drop the `env:` block below —
+      # npm's OIDC-based trusted publishing needs no stored token at all.
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-docker:
     needs: publish
