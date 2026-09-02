@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
     groups:
       dev-dependencies:
         dependency-type: development
@@ -27,11 +31,17 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
 
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
     ignore:
       # The build stage must match the distroless nodejs22 runtime stage. Dependabot
       # bumped the build image to node:26 while the runtime stayed on nodejs22. Bump
