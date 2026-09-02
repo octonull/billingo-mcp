@@ -65,6 +65,14 @@ jobs:
       - name: Publish to npm
         run: npm publish --provenance --access public
 
+      # Syncs the just-published version's CHANGELOG.md entry to a GitHub Release.
+      # With no version argument this defaults to the latest entry in CHANGELOG.md,
+      # i.e. exactly the version this run just tagged and published.
+      - name: Create GitHub Release
+        run: npx changelogen gh release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-docker:
     needs: publish
     uses: ./.github/workflows/publish-docker.yml
