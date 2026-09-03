@@ -17,7 +17,7 @@
 <a href="#-biztonság"><img src="https://img.shields.io/badge/default-read--only-success" alt="Read-only by default"></a>
 </p>
 
-<p align="center"><a href="#english">🇬🇧 English</a> · 🇭🇺 Magyarul</p>
+<p align="center">🇭🇺 Magyarul · <a href="#english">🇬🇧 English</a></p>
 
 A **hivatalos** [Billingo](https://billingo.hu) [MCP](https://modelcontextprotocol.io)
 szerver — 49 eszköz (tool) a Billingo v3 számlázási API felett, stdio (asztali) és
@@ -40,10 +40,10 @@ Olvasd [angolul](#english) is — az angol szakasz egy teljes fordítás, nem ö
 - 🌐 [Használat a hosztolt szerverrel](#-használat-a-hosztolt-szerverrel-ajánlott)
 - 💻 [Telepítés / futtatás stdio-val](#-telepítés--futtatás-stdio-val)
 - 🐳 [Futtatás Dockerrel (HTTP)](#-futtatás-dockerrel-http)
-- ⚙️ [Konfiguráció](#-konfiguráció)
+- 🔧 [Konfiguráció](#-konfiguráció)
 - 🔒 [Biztonság](#-biztonság)
-- 🛠️ [Eszközök](#-eszközök)
-- 🧑‍💻 [Fejlesztés](#-fejlesztés)
+- 🧰 [Eszközök](#-eszközök)
+- 🔨 [Fejlesztés](#-fejlesztés)
 - 🤝 [Közreműködés](#-közreműködés)
 - 📜 [Licenc](#-licenc)
 - 🇬🇧 [English](#english)
@@ -209,7 +209,7 @@ hozzáféréshez.
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
-## ⚙️ Konfiguráció
+## 🔧 Konfiguráció
 
 | Változó                  | Transport  | Kötelező | Alapérték                             | Jelentés                                                                                                                                                           |
 | ------------------------ | ---------- | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -259,7 +259,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
-## 🛠️ Eszközök
+## 🧰 Eszközök
 
 Összesen 49 eszköz: 22 olvasó (mindig látható), 27 író (csak akkor látható, ha az
 írás engedélyezve van).
@@ -345,7 +345,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
-## 🧑‍💻 Fejlesztés
+## 🔨 Fejlesztés
 
 ```bash
 git clone https://github.com/octonull/billingo-mcp.git
@@ -555,7 +555,7 @@ claude mcp add --transport http billingo http://localhost:3000 \
 
 ⬆️ [Back to top](#tartalomjegyzék)
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
 | Variable                 | Transport  | Required | Default                      | Meaning                                                                                                                                                               |
 | ------------------------ | ---------- | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -601,7 +601,7 @@ Read this section before exposing the server to anything.
 
 ⬆️ [Back to top](#tartalomjegyzék)
 
-## 🛠️ Tools
+## 🧰 Tools
 
 49 tools total: 22 read (always visible), 27 write (visible only with writes enabled).
 
@@ -686,7 +686,7 @@ Read this section before exposing the server to anything.
 
 ⬆️ [Back to top](#tartalomjegyzék)
 
-## 🧑‍💻 Development
+## 🔨 Development
 
 ```bash
 git clone https://github.com/octonull/billingo-mcp.git
