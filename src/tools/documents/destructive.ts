@@ -25,7 +25,7 @@ const cancelDocument = defineTool({
     cancellation_recipients: z
       .string()
       .optional()
-      .describe('Email address(es) the cancellation document is sent to.'),
+      .describe('Email addresses the cancellation document is sent to, separated by commas.'),
   },
   annotations: destructive,
   // Per spec, POST /documents/{id}/cancel takes an optional DocumentCancellation body

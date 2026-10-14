@@ -65,8 +65,9 @@ const listDocuments = defineTool({
     paid_start_date: isoDate.optional().describe('Include documents paid on or after this date.'),
     paid_end_date: isoDate.optional().describe('Include documents paid on or before this date.'),
     // Verified live 2026-10-14: only "YYYY-MM-DD HH:MM:SS" is accepted (a bare date or an
-    // ISO "T" separator 422s), it is read as Europe/Budapest local time and is inclusive.
-    // Recording a payment moves the document into a later window.
+    // ISO "T" separator 422s), it is read as Europe/Budapest local time, and documents
+    // changed after it are returned. Recording a payment moves a document into a later
+    // window.
     last_modified_date: z
       .string()
       .regex(
@@ -75,7 +76,7 @@ const listDocuments = defineTool({
       )
       .optional()
       .describe(
-        'Include documents created or modified at or after this moment, "YYYY-MM-DD HH:MM:SS" in Europe/Budapest local time. Use it to fetch only what changed since a previous call.',
+        'Include documents created or modified after this moment, "YYYY-MM-DD HH:MM:SS" in Europe/Budapest local time. Use it to fetch only what changed since a previous call.',
       ),
     partner_id: z.number().int().optional().describe('Restrict to one partner.'),
     block_id: z.number().int().optional().describe('Restrict to one document block.'),
