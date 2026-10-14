@@ -399,6 +399,9 @@ konfliktussal buktatja el az `npm install`-t.
 További hasznos parancsok: `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run test:coverage`, `npm run build`.
 
+**Architektúra:** a rétegek, egy eszközhívás útja és a módosító eszközök működése ábrával:
+[ARCHITECTURE.md](ARCHITECTURE.md).
+
 **Élő smoke teszt csomag:** az `npm run test:live` egy kis tesztcsomagot futtat a
 valódi Billingo sandbox ellen (valódi, de ártalmatlan sandbox adatokat hoz létre és
 takarít el). Ehhez szükséges a `BILLINGO_SANDBOX_API_KEY` beállítása egy sandbox API
@@ -775,6 +778,9 @@ intersection is 5.9.3. Installing a newer TypeScript fails `npm install` with an
 
 Other useful commands: `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run test:coverage`, `npm run build`.
+
+**Architecture:** the layers, the path of a tool call and how the update tools work, with a
+diagram: [ARCHITECTURE.md](ARCHITECTURE.md#english).
 
 **Live smoke suite:** `npm run test:live` runs a small suite against the real Billingo
 sandbox (creating and cleaning up real, if harmless, sandbox data). It needs
