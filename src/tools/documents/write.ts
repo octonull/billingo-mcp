@@ -263,11 +263,11 @@ const copyDocument = defineTool({
   scope: 'write',
   title: 'Copy document',
   description:
-    'Copies an existing document into a new one with the same content. Useful for repeating a recurring invoice: a copy of an invoice comes back as a draft, so check it and issue it with billingo_finalize_draft (which reports it to NAV), or delete it with billingo_delete_document. For other document types check the returned `type`; finalize a receipt draft with billingo_finalize_receipt_draft.',
+    'Copies an existing document into a new draft with the same content. Useful for repeating a recurring invoice: check the draft, then issue it with billingo_finalize_draft (which reports it to NAV), or delete it with billingo_delete_document. For a receipt, check the returned `type` and finalize a receipt draft with billingo_finalize_receipt_draft.',
   inputSchema: { id: z.number().int().describe('Document id to copy.') },
-  // Verified live 2026-10-14 for an issued invoice: the copy came back with type "draft"
-  // and no invoice number; nothing was issued until finalize. Other source types were
-  // not exercised.
+  // Verified live 2026-10-14 for an issued invoice, a proforma and a draft: each copy
+  // came back with type "draft" and no invoice number; nothing was issued until finalize.
+  // Receipts and the other document types were not exercised.
   annotations: issuing,
   handler: async ({ id }, { client }) =>
     jsonResult(await client.post(`/documents/${String(id)}/copy`)),

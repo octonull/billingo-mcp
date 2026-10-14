@@ -415,6 +415,18 @@ live('live: API behaviours the tools depend on', () => {
     await client.post(`/documents/${String(issued.id)}/cancel`).catch(() => undefined);
   });
 
+  it('billingo_copy_document: a proforma and a draft copy are drafts too', async () => {
+    for (const type of ['proforma', 'draft']) {
+      const source = await invoice({ type });
+      const copy = await client.post<{ id: number; type: string }>(
+        `/documents/${String(source.id)}/copy`,
+      );
+      expect(copy.type, type).toBe('draft');
+      await client.delete(`/documents/${String(copy.id)}`).catch(() => undefined);
+      await client.delete(`/documents/${String(source.id)}`).catch(() => undefined);
+    }
+  });
+
   it('every read tool with an outputSchema returns live data that matches it', async () => {
     const doc = await invoice();
     const server = createServer({ client, allowWrite: false });
