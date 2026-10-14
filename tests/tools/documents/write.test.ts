@@ -206,7 +206,13 @@ describe('billingo_create_receipt', () => {
     // different, smaller enum than components.schemas.Vat used by document items.
     // "9%" is a valid Vat value but not a valid ReceiptVat value.
     const schema = z.object(byName('billingo_create_receipt').inputSchema);
-    const base = { block_id: 1, type: 'receipt', payment_method: 'cash', currency: 'HUF' };
+    const base = {
+      block_id: 1,
+      type: 'receipt',
+      payment_method: 'cash',
+      currency: 'HUF',
+      electronic: false,
+    };
     expect(() => schema.parse({ ...base, items: [{ unit_price: 1, vat: '9%' }] })).toThrow();
     expect(schema.parse({ ...base, items: [{ unit_price: 1, vat: '27%' }] }).items).toEqual([
       { unit_price: 1, vat: '27%' },
@@ -220,9 +226,36 @@ describe('billingo_create_receipt', () => {
       type: 'receipt',
       payment_method: 'cash',
       currency: 'HUF',
+      electronic: false,
       items: [{ product_id: 4 }],
     });
     expect(parsed.items).toEqual([{ product_id: 4 }]);
+  });
+
+  it('requires `electronic` — the live API 422s on a receipt without it', () => {
+    const schema = z.object(byName('billingo_create_receipt').inputSchema);
+    const receipt = {
+      block_id: 1,
+      type: 'receipt',
+      payment_method: 'cash',
+      currency: 'HUF',
+      items: [{ unit_price: 1, vat: '27%' }],
+    };
+    expect(schema.safeParse(receipt).success).toBe(false);
+    expect(schema.safeParse({ ...receipt, electronic: false }).success).toBe(true);
+  });
+
+  it('says a receipt needs a receipt-type document block', () => {
+    expect(byName('billingo_create_receipt').description).toContain('"receipt"');
+  });
+});
+
+describe('billingo_copy_document description', () => {
+  it('says the copy is a draft to finalize, not an issued document', () => {
+    const description = byName('billingo_copy_document').description;
+    expect(description).toContain('draft');
+    expect(description).toContain('billingo_finalize_draft');
+    expect(description).not.toContain('issued immediately');
   });
 });
 

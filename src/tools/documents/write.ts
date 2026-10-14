@@ -201,7 +201,15 @@ const receiptInsertShape = {
   payment_method: paymentMethodSchema,
   currency: currencySchema,
   conversion_rate: z.number().optional().describe(CONVERSION_RATE_DESCRIPTION),
-  electronic: z.boolean().optional().describe('Issue as an e-invoice.'),
+  // Verified live 2026-10-14: POST /documents/receipt without `electronic` 422s with
+  // "The electronic field must be present.", although the spec gives it a default. The
+  // finalize PUT shares this shape and was not exercised; it is assumed to validate the
+  // same way, and a draft read back from the API already carries `electronic`.
+  electronic: z
+    .boolean()
+    .describe(
+      'Issue as an electronic receipt. Required by the API; send false for a paper receipt.',
+    ),
   items: z.array(receiptItemSchema).min(1).describe('At least one line item.'),
   vendor_id: z.string().optional().describe('Your own external reference.'),
 };
@@ -210,7 +218,7 @@ const createReceipt = defineTool({
   name: 'billingo_create_receipt',
   scope: 'write',
   title: 'Create receipt',
-  description: `Creates a receipt (nyugta). ${NAV_WARNING}`,
+  description: `Creates a receipt (nyugta). It needs a document block whose type is "receipt" (billingo_list_document_blocks shows each block's type); an invoice block is refused. ${NAV_WARNING}`,
   inputSchema: receiptInsertShape,
   annotations: issuing,
   handler: async (args, { client }) =>
@@ -232,7 +240,7 @@ const finalizeReceiptDraft = defineTool({
   name: 'billingo_finalize_receipt_draft',
   scope: 'write',
   title: 'Finalize draft into a receipt',
-  description: `Finalizes an existing draft into a real receipt. This issues the receipt and reports it to NAV — it CANNOT be undone. PUT /documents/receipt/{id} is a full replace, not a partial conversion: the API requires the complete receipt body, not just the id. Fetch the draft first with billingo_get_document, then pass its fields back here — with type changed from "draft" to "receipt" — along with any other changes. ${NAV_WARNING}`,
+  description: `Finalizes an existing draft into a real receipt. This issues the receipt and reports it to NAV — it CANNOT be undone. PUT /documents/receipt/{id} is a full replace, not a partial conversion: the API requires the complete receipt body, not just the id. Fetch the draft first with billingo_get_document, then pass its fields back here — with type changed from "draft" to "receipt" — along with any other changes. The draft's document block must be of type "receipt". ${NAV_WARNING}`,
   inputSchema: { id: z.number().int().describe('Draft document id.'), ...receiptInsertShape },
   annotations: issuing,
   handler: async ({ id, ...body }, { client }) =>
@@ -255,8 +263,11 @@ const copyDocument = defineTool({
   scope: 'write',
   title: 'Copy document',
   description:
-    'Copies an existing document into a new one with the same content. Useful for repeating a recurring invoice. If the source document is not a draft, the copy is issued immediately and reported to NAV, exactly like creating that document type — the same irreversibility applies. Confirm the details with the user before calling this.',
+    'Copies an existing document into a new one with the same content. Useful for repeating a recurring invoice: a copy of an invoice comes back as a draft, so check it and issue it with billingo_finalize_draft (which reports it to NAV), or delete it with billingo_delete_document. For other document types check the returned `type`; finalize a receipt draft with billingo_finalize_receipt_draft.',
   inputSchema: { id: z.number().int().describe('Document id to copy.') },
+  // Verified live 2026-10-14 for an issued invoice: the copy came back with type "draft"
+  // and no invoice number; nothing was issued until finalize. Other source types were
+  // not exercised.
   annotations: issuing,
   handler: async ({ id }, { client }) =>
     jsonResult(await client.post(`/documents/${String(id)}/copy`)),

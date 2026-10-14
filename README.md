@@ -327,11 +327,11 @@ szükséges csoportok töltődnek be.
 **Dokumentumok — írás** (9)
 
 - `billingo_create_document` — Dokumentum létrehozása (számla, díjbekérő, piszkozat vagy előlegszámla). _(író)_
-- `billingo_create_receipt` — Nyugta létrehozása. _(író)_
+- `billingo_create_receipt` — Nyugta létrehozása (nyugta típusú számlatömb kell hozzá). _(író)_
 - `billingo_finalize_draft` — Piszkozat véglegesítése számlává — kiállítja és jelenti a NAV felé. _(író)_
 - `billingo_finalize_receipt_draft` — Piszkozat véglegesítése nyugtává. _(író)_
 - `billingo_create_document_from_proforma` — Számla létrehozása díjbekérőből. _(író)_
-- `billingo_copy_document` — Dokumentum másolása. _(író)_
+- `billingo_copy_document` — Dokumentum másolása; számla másolata piszkozat lesz (a `billingo_finalize_draft` állítja ki). _(író)_
 - `billingo_create_modification_document` — Módosító (helyesbítő) dokumentum létrehozása. _(író)_
 - `billingo_update_payment` — Egy dokumentum rögzített kifizetéseinek felülírása: a listából kihagyott kifizetés törlődik. _(író)_
 - `billingo_archive_document` — Proforma dokumentum archiválása. _(író)_
@@ -697,11 +697,11 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 **Documents — write** (9)
 
 - `billingo_create_document` — Create a document (invoice, proforma, draft, or advance). _(write)_
-- `billingo_create_receipt` — Create a receipt. _(write)_
+- `billingo_create_receipt` — Create a receipt (needs a receipt-type document block). _(write)_
 - `billingo_finalize_draft` — Finalize a draft into an invoice — issues it and reports it to NAV. _(write)_
 - `billingo_finalize_receipt_draft` — Finalize a draft into a receipt. _(write)_
 - `billingo_create_document_from_proforma` — Create an invoice from a proforma. _(write)_
-- `billingo_copy_document` — Copy a document. _(write)_
+- `billingo_copy_document` — Copy a document; an invoice copy is a draft (issue it with `billingo_finalize_draft`). _(write)_
 - `billingo_create_modification_document` — Create a modification (correction) document. _(write)_
 - `billingo_update_payment` — Replace a document's recorded payments; any payment left out is deleted. _(write)_
 - `billingo_archive_document` — Archive a proforma document. _(write)_

@@ -326,6 +326,39 @@ live('live: API behaviours the tools depend on', () => {
     );
   });
 
+  it('billingo_copy_document: copying an issued invoice creates a draft, not an invoice', async () => {
+    const doc = await invoice();
+    const copy = await client.post<{ id: number; type: string; invoice_number: string }>(
+      `/documents/${String(doc.id)}/copy`,
+    );
+    expect(copy.type).toBe('draft');
+    expect(copy.invoice_number).toBe('');
+    await client.delete(`/documents/${String(copy.id)}`).catch(() => undefined);
+    await client.post(`/documents/${String(doc.id)}/cancel`).catch(() => undefined);
+  });
+
+  it('billingo_create_receipt: electronic is required and an invoice block is refused', async () => {
+    const blocks = await client.get<{ data: { id: number; type: string }[] }>('/document-blocks');
+    const invoiceBlock = blocks.data.find((b) => b.type === 'invoice');
+    expect(invoiceBlock).toBeDefined();
+    const error = await client
+      .post('/documents/receipt', {
+        body: {
+          block_id: invoiceBlock?.id,
+          type: 'receipt',
+          name: 'Vevő',
+          payment_method: 'cash',
+          currency: 'HUF',
+          items: [{ name: 'live check', unit_price: 1270, vat: '27%' }],
+        },
+      })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(BillingoApiError);
+    const fields = (error as BillingoApiError).validationErrors.map((v) => v.field);
+    expect(fields).toContain('electronic');
+    expect(fields).toContain('block_id');
+  });
+
   it('every read tool with an outputSchema returns live data that matches it', async () => {
     const doc = await invoice();
     const server = createServer({ client, allowWrite: false });
