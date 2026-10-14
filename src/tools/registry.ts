@@ -20,6 +20,12 @@ export interface ToolDefinition<TShape extends ZodRawShape> {
   title: string;
   description: string;
   inputSchema: TShape;
+  /**
+   * Published as the tool's outputSchema. A tool that declares one must return
+   * `structuredContent` matching it on every success (the SDK rejects the call
+   * otherwise), so only tools whose every success path is a JSON object declare it.
+   */
+  outputSchema?: z.ZodType;
   annotations: ToolAnnotations;
   /**
    * Declared with method-shorthand syntax (not `handler: (args) => ...`) so TypeScript
@@ -60,7 +66,11 @@ export function filterByScope(
  * "something went wrong" — it has already seen "null" used both ways elsewhere. Spell
  * out success explicitly instead.
  */
-export function jsonResult(value: unknown, summary?: string): CallToolResult {
+export function jsonResult(
+  value: unknown,
+  summary?: string,
+  structured?: Record<string, unknown>,
+): CallToolResult {
   const content: CallToolResult['content'] = [];
   if (summary !== undefined) content.push({ type: 'text', text: summary });
   const text =
@@ -68,7 +78,16 @@ export function jsonResult(value: unknown, summary?: string): CallToolResult {
       ? 'Success. The API returned no content (empty body).'
       : JSON.stringify(value, null, 2);
   content.push({ type: 'text', text });
-  return { content };
+  // The same data as structuredContent, so code-mode hosts can use it without parsing
+  // text. Only objects qualify (the protocol requires an object); a tool whose API
+  // answer is a bare array passes its own wrapper as `structured`. The server keeps it
+  // only for tools that publish an outputSchema (see runTool in server.ts).
+  const structuredContent = structured ?? (isPlainObject(value) ? value : undefined);
+  return structuredContent === undefined ? { content } : { content, structuredContent };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**

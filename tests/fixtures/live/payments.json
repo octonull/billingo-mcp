@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "date": "2026-10-14",
+      "price": 100,
+      "payment_method": "cash",
+      "voucher_number": "",
+      "conversion_rate": 1
+    }
+  ]
+}

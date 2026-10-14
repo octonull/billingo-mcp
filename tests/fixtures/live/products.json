@@ -1,0 +1,59 @@
+{
+  "status": 200,
+  "body": {
+    "total": 5,
+    "per_page": 5,
+    "current_page": 1,
+    "last_page": 1,
+    "prev_page_url": null,
+    "next_page_url": null,
+    "data": [
+      {
+        "id": 26808162,
+        "name": "Example item",
+        "comment": "",
+        "currency": "HUF",
+        "vat": "27%",
+        "net_unit_price": 3332.99995,
+        "gross_unit_price": 4232.91,
+        "unit": "db",
+        "general_ledger_number": "",
+        "general_ledger_taxcode": "",
+        "entitlement": null,
+        "ean": "",
+        "sku": "",
+        "is_manage": false,
+        "purchase_price": 0,
+        "is_generate_erase_code": false,
+        "connect_product_id": null,
+        "apply_discount": false,
+        "apply_quantity": false,
+        "is_connect_product": false,
+        "is_deposit_fee": false
+      },
+      {
+        "id": 26808157,
+        "name": "Example item",
+        "comment": "",
+        "currency": "HUF",
+        "vat": "27%",
+        "net_unit_price": 33329.99996,
+        "gross_unit_price": 42329.1,
+        "unit": "db",
+        "general_ledger_number": "",
+        "general_ledger_taxcode": "",
+        "entitlement": null,
+        "ean": "",
+        "sku": "",
+        "is_manage": false,
+        "purchase_price": 0,
+        "is_generate_erase_code": false,
+        "connect_product_id": null,
+        "apply_discount": false,
+        "apply_quantity": false,
+        "is_connect_product": false,
+        "is_deposit_fee": false
+      }
+    ]
+  }
+}

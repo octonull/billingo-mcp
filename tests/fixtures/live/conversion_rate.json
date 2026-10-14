@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "body": {
+    "from_currency": "EUR",
+    "to_currency": "HUF",
+    "conversation_rate": 363.72,
+    "date": "2026-10-14"
+  }
+}

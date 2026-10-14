@@ -1,0 +1,6 @@
+{
+  "status": 200,
+  "body": {
+    "public_url": "https://api.billingo.hu/document-access/EXAMPLETOKEN"
+  }
+}

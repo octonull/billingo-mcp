@@ -1,5 +1,6 @@
 // src/tools/partners.ts
 import { z } from 'zod';
+import { paginatedSchema, partnerSchema } from '../billingo/schemas.js';
 import { currencySchema, paymentMethodSchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
@@ -56,6 +57,7 @@ const listPartners = defineTool({
     ...pageParamsShape,
     query: z.string().optional().describe('Free-text search over the partner name.'),
   },
+  outputSchema: paginatedSchema(partnerSchema),
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ page, per_page, query }, { client }) => {
     const result = await client.get<Paginated<unknown>>('/partners', {
@@ -71,6 +73,7 @@ const getPartner = defineTool({
   title: 'Get partner',
   description: 'Returns a single partner by id.',
   inputSchema: { id: z.number().int().describe('Partner id.') },
+  outputSchema: partnerSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ id }, { client }) => jsonResult(await client.get(`/partners/${String(id)}`)),
 });

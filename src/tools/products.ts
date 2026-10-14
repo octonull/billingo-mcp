@@ -1,5 +1,6 @@
 // src/tools/products.ts
 import { z } from 'zod';
+import { paginatedSchema, productSchema } from '../billingo/schemas.js';
 import { currencySchema, vatSchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
@@ -30,6 +31,7 @@ const listProducts = defineTool({
     ...pageParamsShape,
     query: z.string().optional().describe('Free-text search over the product name.'),
   },
+  outputSchema: paginatedSchema(productSchema),
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ page, per_page, query }, { client }) => {
     const result = await client.get<Paginated<unknown>>('/products', {
@@ -45,6 +47,7 @@ const getProduct = defineTool({
   title: 'Get product',
   description: 'Returns a single product by id.',
   inputSchema: { id: z.number().int().describe('Product id.') },
+  outputSchema: productSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ id }, { client }) => jsonResult(await client.get(`/products/${String(id)}`)),
 });

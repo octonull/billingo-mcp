@@ -1,5 +1,6 @@
 // src/tools/spendings.ts
 import { z } from 'zod';
+import { paginatedSchema, spendingSchema } from '../billingo/schemas.js';
 import { isoDate } from '../billingo/dates.js';
 import { categorySchema, currencySchema, paymentMethodSchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
@@ -61,6 +62,7 @@ const listSpendings = defineTool({
     start_date: isoDate.optional().describe('Include spendings fulfilled on or after this date.'),
     end_date: isoDate.optional().describe('Include spendings fulfilled on or before this date.'),
   },
+  outputSchema: paginatedSchema(spendingSchema),
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ page, per_page, start_date, end_date }, { client }) => {
     const result = await client.get<Paginated<unknown>>('/spendings', {
@@ -76,6 +78,7 @@ const getSpending = defineTool({
   title: 'Get spending',
   description: 'Returns a single spending by id.',
   inputSchema: { id: z.number().int().describe('Spending id.') },
+  outputSchema: spendingSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ id }, { client }) => jsonResult(await client.get(`/spendings/${String(id)}`)),
 });

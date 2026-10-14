@@ -1,5 +1,6 @@
 // src/tools/organization.ts
 import { z } from 'zod';
+import { conversionRateSchema, organizationSchema } from '../billingo/schemas.js';
 import { isoDate } from '../billingo/dates.js';
 import { currencySchema } from '../billingo/enums.js';
 import { defineTool, jsonResult } from './registry.js';
@@ -12,6 +13,7 @@ const getOrganization = defineTool({
   description:
     'Returns account-level data for the organization that owns the API key: its tax code, its Billingo subscription, and whether NAV Online Számla is connected. This is NOT a company profile — it contains no name, id or address. Use it to check the subscription or NAV connection status.',
   inputSchema: {},
+  outputSchema: organizationSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async (_args, { client }) => jsonResult(await client.get('/organization')),
 });
@@ -49,6 +51,7 @@ const getConversionRate = defineTool({
         "Rate as of this date. Omit for today's rate. For a backdated or historical document, pass its fulfillment_date here — otherwise you'll get today's rate on a document dated in the past.",
       ),
   },
+  outputSchema: conversionRateSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ from, to, date }, { client }) =>
     jsonResult(await client.get('/currencies', { query: { from, to, date } })),

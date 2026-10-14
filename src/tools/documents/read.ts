@@ -1,6 +1,14 @@
 // src/tools/documents/read.ts
 import { z } from 'zod';
 import {
+  documentSchema,
+  onlineSzamlaStatusSchema,
+  paginatedSchema,
+  paymentsResultSchema,
+  publicUrlSchema,
+  remindersSchema,
+} from '../../billingo/schemas.js';
+import {
   BillingoPdfNotReadyError,
   describeError,
   PDF_NOT_READY_STATUS,
@@ -75,6 +83,7 @@ const listDocuments = defineTool({
     payment_method: paymentMethodSchema.optional(),
     query: z.string().optional().describe('Free-text search.'),
   },
+  outputSchema: paginatedSchema(documentSchema),
   annotations: readOnly,
   handler: async (args, { client }) => {
     const result = await client.get<Paginated<unknown>>('/documents', { query: args });
@@ -92,6 +101,7 @@ const getDocument = defineTool({
     id: z.number().int().optional().describe('Billingo document id.'),
     vendor_id: z.string().optional().describe('Your external reference for the document.'),
   },
+  outputSchema: documentSchema,
   annotations: readOnly,
   handler: async ({ id, vendor_id }, { client }) => {
     if (id !== undefined) return jsonResult(await client.get(`/documents/${String(id)}`));
@@ -159,6 +169,7 @@ const getPublicUrl = defineTool({
   description:
     'Returns a shareable public URL for the document, viewable without a Billingo login.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: publicUrlSchema,
   annotations: readOnly,
   handler: async ({ id }, { client }) =>
     jsonResult(await client.get(`/documents/${String(id)}/public-url`)),
@@ -172,6 +183,7 @@ const getOnlineSzamlaStatus = defineTool({
     'Returns the NAV Online Számla reporting status of a document: the transaction id, the status, and any validation messages from NAV. Use this to check whether reporting succeeded. ' +
     'Errors (4xx, "NavOnlineSzamla is not found") when the document has no NAV record at all — for example when the organization is not connected to NAV Online Számla, or the document is not subject to reporting. That is not a NAV failure; it means there is nothing to report on.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: onlineSzamlaStatusSchema,
   annotations: readOnly,
   // `status` is `{ type: "string" }` in the spec — no enum. It likely carries NAV's own
   // RECEIVED/PROCESSING/SAVED/DONE/ABORTED values through, but that isn't documented
@@ -186,9 +198,13 @@ const getPayments = defineTool({
   title: 'Get document payments',
   description: 'Returns the payments recorded against a document.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: paymentsResultSchema,
   annotations: readOnly,
-  handler: async ({ id }, { client }) =>
-    jsonResult(await client.get(`/documents/${String(id)}/payments`)),
+  handler: async ({ id }, { client }) => {
+    const payments = await client.get<unknown[] | null>(`/documents/${String(id)}/payments`);
+    // An empty body (null) still answers with a list, as the schema promises.
+    return jsonResult(payments, undefined, { payments: payments ?? [] });
+  },
 });
 
 const getReminders = defineTool({
@@ -198,6 +214,7 @@ const getReminders = defineTool({
   description:
     'Returns the payment reminder events sent for a document, grouped into sent, upcoming and postal-mail reminders.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: remindersSchema,
   annotations: readOnly,
   handler: async ({ id }, { client }) =>
     jsonResult(await client.get(`/documents/${String(id)}/reminders`)),

@@ -22,8 +22,9 @@ async function runTool(
   args: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<CallToolResult> {
+  let result: CallToolResult;
   try {
-    return await tool.handler(args, ctx);
+    result = await tool.handler(args, ctx);
   } catch (error) {
     if (error instanceof BillingoError) {
       const idempotent = tool.annotations.idempotentHint === true;
@@ -31,6 +32,19 @@ async function runTool(
     }
     throw error;
   }
+  if (result.isError === true) return result;
+  if (tool.outputSchema === undefined) {
+    // structuredContent belongs to tools that publish a schema; others keep text only.
+    const withoutStructured = { ...result };
+    delete withoutStructured.structuredContent;
+    return withoutStructured;
+  }
+  // An empty body (204) has no object to return. Send {} when the schema allows it, so
+  // the SDK does not turn a successful call into a missing-structured-content error.
+  if (result.structuredContent === undefined && tool.outputSchema.safeParse({}).success) {
+    return { ...result, structuredContent: {} };
+  }
+  return result;
 }
 
 export function createServer({ client, allowWrite }: CreateServerOptions): McpServer {
@@ -51,6 +65,7 @@ export function createServer({ client, allowWrite }: CreateServerOptions): McpSe
         title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
+        ...(tool.outputSchema === undefined ? {} : { outputSchema: tool.outputSchema }),
         annotations: tool.annotations,
       },
       async (args: Record<string, unknown>) => runTool(tool, args, ctx),

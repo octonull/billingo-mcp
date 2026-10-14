@@ -1,5 +1,6 @@
 // src/tools/bank-accounts.ts
 import { z } from 'zod';
+import { bankAccountSchema, paginatedSchema } from '../billingo/schemas.js';
 import { currencySchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
@@ -25,6 +26,7 @@ const listBankAccounts = defineTool({
   title: 'List bank accounts',
   description: 'Lists the bank accounts configured on the organization.',
   inputSchema: { ...pageParamsShape },
+  outputSchema: paginatedSchema(bankAccountSchema),
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ page, per_page }, { client }) => {
     const result = await client.get<Paginated<unknown>>('/bank-accounts', {
@@ -40,6 +42,7 @@ const getBankAccount = defineTool({
   title: 'Get bank account',
   description: 'Returns a single bank account by id.',
   inputSchema: { id: z.number().int().describe('Bank account id.') },
+  outputSchema: bankAccountSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ id }, { client }) =>
     jsonResult(await client.get(`/bank-accounts/${String(id)}`)),
