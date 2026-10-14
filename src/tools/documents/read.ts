@@ -26,17 +26,16 @@ const readOnly = { readOnlyHint: true, idempotentHint: true, openWorldHint: true
  * `$ref`), confirming why paymentMethodSchema is a declared dependency.
  *
  * `start_date`/`end_date` filter by invoice date, not fulfillment date — the API has a
- * separate `fulfillment_start_date`/`fulfillment_end_date` pair for that. Along with
- * `paid_start_date`/`paid_end_date`, `start_number`/`end_number`/`start_year`/`end_year`,
- * and `last_modified_date`, those are left out here to match the brief's scoped filter
- * set; they exist in the spec if a future task wants them.
+ * separate `fulfillment_start_date`/`fulfillment_end_date` pair for that. The payment-date
+ * pair and `last_modified_date` are exposed below; `start_number`/`end_number`/
+ * `start_year`/`end_year` are still left out.
  */
 const listDocuments = defineTool({
   name: 'billingo_list_documents',
   scope: 'read',
   title: 'List documents',
   description:
-    'Lists documents (invoices, receipts, proformas, drafts and more), newest first. Filter by type, invoice date range, partner, payment status/method or document block.',
+    'Lists documents (invoices, receipts, proformas, drafts and more), newest first. Filter by type, invoice date range, fulfillment date range, payment date range, last modification time, partner, payment status/method or document block.',
   inputSchema: {
     ...pageParamsShape,
     type: z
@@ -45,6 +44,27 @@ const listDocuments = defineTool({
       .describe('Restrict to one document type. Only "invoice" or "receipt" are accepted here.'),
     start_date: isoDate.optional().describe('Include documents invoiced on or after this date.'),
     end_date: isoDate.optional().describe('Include documents invoiced on or before this date.'),
+    fulfillment_start_date: isoDate
+      .optional()
+      .describe('Include documents fulfilled (teljesítés) on or after this date.'),
+    fulfillment_end_date: isoDate
+      .optional()
+      .describe('Include documents fulfilled (teljesítés) on or before this date.'),
+    paid_start_date: isoDate.optional().describe('Include documents paid on or after this date.'),
+    paid_end_date: isoDate.optional().describe('Include documents paid on or before this date.'),
+    // Verified live 2026-10-14: only "YYYY-MM-DD HH:MM:SS" is accepted (a bare date or an
+    // ISO "T" separator 422s), it is read as Europe/Budapest local time and is inclusive.
+    // Recording a payment moves the document into a later window.
+    last_modified_date: z
+      .string()
+      .regex(
+        /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/,
+        'must be "YYYY-MM-DD HH:MM:SS" in Europe/Budapest local time',
+      )
+      .optional()
+      .describe(
+        'Include documents created or modified at or after this moment, "YYYY-MM-DD HH:MM:SS" in Europe/Budapest local time. Use it to fetch only what changed since a previous call.',
+      ),
     partner_id: z.number().int().optional().describe('Restrict to one partner.'),
     block_id: z.number().int().optional().describe('Restrict to one document block.'),
     payment_status: z.enum(['expired', 'none', 'outstanding', 'paid', 'partially_paid']).optional(),
