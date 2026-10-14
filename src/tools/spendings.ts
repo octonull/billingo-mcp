@@ -13,6 +13,10 @@ import type { AnyToolDefinition } from './registry.js';
  * partner_name; a spending references an existing partner by partner_id instead).
  * SpendingSave.required: currency, total_gross, total_gross_huf, total_vat_amount,
  * total_vat_amount_huf, fulfillment_date, category, payment_method.
+ *
+ * The live API requires four more. Verified 2026-10-14 for categories other, service
+ * and stock, currency HUF: POST and PUT without conversion_rate, invoice_number,
+ * invoice_date and due_date 422 with "The ... field is required." for each.
  */
 const spendingFields = {
   category: categorySchema.describe('Spending category.'),
@@ -27,12 +31,17 @@ const spendingFields = {
   total_vat_amount_huf: z.number().describe('HUF equivalent of total_vat_amount.'),
   fulfillment_date: isoDate,
   payment_method: paymentMethodSchema,
-  conversion_rate: z.number().optional(),
+  conversion_rate: z
+    .number()
+    .describe('Conversion rate to HUF. Required by the API even for HUF, in which case send 1.'),
   paid_at: isoDate.optional().describe('Date the spending was paid.'),
   comment: z.string().optional(),
-  invoice_number: z.string().optional(),
-  invoice_date: isoDate.optional(),
-  due_date: isoDate.optional(),
+  invoice_number: z
+    .string()
+    .min(1)
+    .describe('Number of the supplier invoice. Required by the API.'),
+  invoice_date: isoDate.describe('Date of the supplier invoice. Required by the API.'),
+  due_date: isoDate.describe('Payment due date. Required by the API.'),
   partner_id: z
     .number()
     .int()
@@ -91,21 +100,23 @@ const createSpending = defineTool({
  * PUT /spendings/{id} takes the same components.schemas.SpendingSave as POST /spendings
  * (spec/billingo-3.0.15.json) — not a separate partial-update schema. So, like the other
  * three update tools, this is a full replace: update must require the same fields create
- * does, even though this endpoint was not itself probed live.
+ * does. Probed live 2026-10-14: the PUT requires invoice_number too.
  */
 const updateSpending = defineTool({
   name: 'billingo_update_spending',
   scope: 'write',
   title: 'Update spending',
   description:
-    'Replaces an existing spending. PUT uses the same schema as create, so it is a full update, not a patch: the API re-validates the entire required field set (currency, total_gross, total_gross_huf, total_vat_amount, total_vat_amount_huf, fulfillment_date, category, payment_method) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { total_gross }) will fail with a 422. To update safely: call billingo_get_spending first, merge your changes into the full record, and send that complete result here.',
+    'Replaces an existing spending. PUT uses the same schema as create, so it is a full update, not a patch: the API re-validates the entire required field set (currency, total_gross, total_gross_huf, total_vat_amount, total_vat_amount_huf, fulfillment_date, category, payment_method, conversion_rate, invoice_number, invoice_date, due_date) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { total_gross }) will fail with a 422. To update safely: call billingo_get_spending first, merge your changes into the full record, and send that complete result here. Optional fields you leave out are not kept: the API clears them.',
   inputSchema: {
     id: z.number().int().describe('Spending id.'),
     ...spendingFields,
   },
+  // destructiveHint: true because omitted optional fields are cleared, not kept.
+  // Verified live 2026-10-14: a PUT without comment returned 200 and left it empty.
   annotations: {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },

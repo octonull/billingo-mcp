@@ -45,6 +45,10 @@ const validSpending = {
   total_vat_amount_huf: 2700,
   fulfillment_date: '2026-01-15',
   payment_method: 'wire_transfer',
+  conversion_rate: 1,
+  invoice_number: 'SUP-2026-001',
+  invoice_date: '2026-01-15',
+  due_date: '2026-01-30',
 };
 
 describe('spending tool surface', () => {
@@ -125,6 +129,16 @@ describe('billingo_create_spending', () => {
     expect(schema.parse(validSpending)).toMatchObject({ category: 'other' });
   });
 
+  it('requires conversion_rate, invoice_number, invoice_date and due_date — the live API 422s without them', () => {
+    const schema = z.object(byName('billingo_create_spending').inputSchema);
+    for (const field of ['conversion_rate', 'invoice_number', 'invoice_date', 'due_date']) {
+      const body = Object.fromEntries(
+        Object.entries(validSpending).filter(([key]) => key !== field),
+      );
+      expect(schema.safeParse(body).success, field).toBe(false);
+    }
+  });
+
   it('rejects a category outside the enum instead of accepting any string', () => {
     const schema = z.object(byName('billingo_create_spending').inputSchema);
     expect(() => schema.parse({ ...validSpending, category: 'not_a_real_category' })).toThrow();
@@ -160,6 +174,10 @@ describe('billingo_update_spending', () => {
     expect(() => schema.parse({ id: 11 })).toThrow();
     expect(() => schema.parse({ id: 11, total_gross: 20000 })).toThrow();
     expect(schema.parse(fullUpdate)).toMatchObject({ total_gross: 20000 });
+  });
+
+  it('is marked destructive — omitted optional fields are cleared by the API', () => {
+    expect(byName('billingo_update_spending').annotations.destructiveHint).toBe(true);
   });
 });
 
