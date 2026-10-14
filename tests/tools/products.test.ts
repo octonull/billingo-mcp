@@ -130,7 +130,14 @@ describe('billingo_create_product', () => {
 });
 
 describe('billingo_update_product', () => {
-  const fullUpdate = { id: 3, name: 'Widget v2', currency: 'HUF', vat: '27%', unit: 'db' } as const;
+  const fullUpdate = {
+    id: 3,
+    name: 'Widget v2',
+    currency: 'HUF',
+    vat: '27%',
+    unit: 'db',
+    net_unit_price: 1000,
+  } as const;
 
   it('puts the full record to /products/{id} without the id in the body', async () => {
     let path = '';
@@ -144,7 +151,13 @@ describe('billingo_update_product', () => {
     );
     await byName('billingo_update_product').handler(fullUpdate, ctx);
     expect(path).toBe('/v3/products/3');
-    expect(body).toEqual({ name: 'Widget v2', currency: 'HUF', vat: '27%', unit: 'db' });
+    expect(body).toEqual({
+      name: 'Widget v2',
+      currency: 'HUF',
+      vat: '27%',
+      unit: 'db',
+      net_unit_price: 1000,
+    });
   });
 
   it('rejects a body missing currency, vat or unit — PUT is a full replace, not a patch', () => {
@@ -152,6 +165,13 @@ describe('billingo_update_product', () => {
     expect(() => schema.parse({ id: 3, name: 'Widget v2' })).toThrow();
     expect(() => schema.parse({ id: 3, name: 'Widget v2', currency: 'HUF', vat: '27%' })).toThrow();
     expect(schema.parse(fullUpdate)).toMatchObject({ name: 'Widget v2' });
+  });
+
+  it('rejects an update without net_unit_price — the live API 422s without a price', () => {
+    const schema = z.object(byName('billingo_update_product').inputSchema);
+    const withoutPrice: Record<string, unknown> = { ...fullUpdate };
+    delete withoutPrice['net_unit_price'];
+    expect(() => schema.parse(withoutPrice)).toThrow();
   });
 });
 

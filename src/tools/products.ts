@@ -87,7 +87,7 @@ const updateProduct = defineTool({
   scope: 'write',
   title: 'Update product',
   description:
-    'Replaces an existing product. PUT is a full update, not a patch: the API re-validates the entire required field set (name, currency, vat, unit) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { name }) will fail with a 422. To update safely: call billingo_get_product first, merge your changes into the full record, and send that complete result here.',
+    'Replaces an existing product. PUT is a full update, not a patch: the API re-validates the entire required field set (name, currency, vat, unit, net_unit_price) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { name }) will fail with a 422. To update safely: call billingo_get_product first, merge your changes into the full record, and send that complete result here.',
   inputSchema: {
     id: z.number().int().describe('Product id.'),
     ...productFields,
@@ -103,6 +103,12 @@ const updateProduct = defineTool({
       .describe(
         'Unit of measure, e.g. "db", "óra", "hó". Required on update — PUT replaces the whole product.',
       ),
+    // Verified live 2026-10-14: a PUT without a price 422s with "The net unit price field
+    // is required when gross unit price is not present." The spec does not list it as
+    // required on Product.
+    net_unit_price: z
+      .number()
+      .describe('Net unit price. Required on update — PUT replaces the whole product.'),
   },
   annotations: {
     readOnlyHint: false,
