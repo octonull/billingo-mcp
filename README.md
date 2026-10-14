@@ -267,7 +267,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 **Szervezet (Organization)** (3 olvasó)
 
 - `billingo_get_organization` — Szervezeti adatok lekérése (adószám, előfizetés, NAV-kapcsolat állapota).
-- `billingo_check_tax_number` — Magyar adószám ellenőrzése.
+- `billingo_check_tax_number` — Magyar adószám ellenőrzése (teljes, kötőjeles adószám; élő NAV-kapcsolat kell).
 - `billingo_get_conversion_rate` — Hivatalos árfolyam lekérése, opcionálisan egy múltbeli dátumra.
 
 **Partnerek** (2 olvasó, 4 író)
@@ -329,7 +329,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 - `billingo_create_document_from_proforma` — Számla létrehozása díjbekérőből. _(író)_
 - `billingo_copy_document` — Dokumentum másolása. _(író)_
 - `billingo_create_modification_document` — Módosító (helyesbítő) dokumentum létrehozása. _(író)_
-- `billingo_update_payment` — Egy dokumentum rögzített kifizetéseinek módosítása. _(író)_
+- `billingo_update_payment` — Egy dokumentum rögzített kifizetéseinek felülírása: a listából kihagyott kifizetés törlődik. _(író)_
 - `billingo_archive_document` — Proforma dokumentum archiválása. _(író)_
 
 **Dokumentumok — export** (1 olvasó)
@@ -608,7 +608,7 @@ Read this section before exposing the server to anything.
 **Organization** (3 read)
 
 - `billingo_get_organization` — Get organization details (tax code, subscription, NAV connection status).
-- `billingo_check_tax_number` — Validate a Hungarian tax number.
+- `billingo_check_tax_number` — Validate a Hungarian tax number (full hyphenated form; needs a live NAV connection).
 - `billingo_get_conversion_rate` — Get an official currency conversion rate, optionally for a past date.
 
 **Partners** (2 read, 4 write)
@@ -670,7 +670,7 @@ Read this section before exposing the server to anything.
 - `billingo_create_document_from_proforma` — Create an invoice from a proforma. _(write)_
 - `billingo_copy_document` — Copy a document. _(write)_
 - `billingo_create_modification_document` — Create a modification (correction) document. _(write)_
-- `billingo_update_payment` — Update a document's recorded payments. _(write)_
+- `billingo_update_payment` — Replace a document's recorded payments; any payment left out is deleted. _(write)_
 - `billingo_archive_document` — Archive a proforma document. _(write)_
 
 **Documents — export** (1 read)
