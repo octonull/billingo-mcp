@@ -514,6 +514,47 @@ live('live: API behaviours the tools depend on', () => {
     await mcp.close();
   });
 
+  it('billingo_create_document: bank_account_id picks the printed account, advance_invoice settles an advance', async () => {
+    const banks = await client.get<{ data: { id: number }[] }>('/bank-accounts');
+    const chosen = banks.data.at(-1)?.id ?? 0;
+    const printed = await invoice({ bank_account_id: chosen });
+    expect(
+      (printed as unknown as { organization: { bank_account: { id: number } } }).organization
+        .bank_account.id,
+    ).toBe(chosen);
+    const advance = await invoice({ type: 'advance' });
+    const final = await client.post<{ id: number; related_documents: { id: number }[] }>(
+      '/documents',
+      {
+        body: {
+          partner_id: partnerId,
+          block_id: blockId,
+          type: 'invoice',
+          fulfillment_date: today,
+          due_date: today,
+          payment_method: 'wire_transfer',
+          language: 'hu',
+          currency: 'HUF',
+          advance_invoice: [advance.id],
+          items: [
+            {
+              name: 'final',
+              unit_price: 3000,
+              unit_price_type: 'net',
+              quantity: 1,
+              unit: 'db',
+              vat: '27%',
+            },
+          ],
+        },
+      },
+    );
+    expect(final.related_documents.map((d) => d.id)).toContain(advance.id);
+    for (const id of [printed.id, final.id, advance.id]) {
+      await client.post(`/documents/${String(id)}/cancel`).catch(() => undefined);
+    }
+  });
+
   it('every read tool with an outputSchema returns live data that matches it', async () => {
     const doc = await invoice();
     const server = createServer({ client, allowWrite: false });

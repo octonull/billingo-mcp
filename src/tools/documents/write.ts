@@ -135,6 +135,23 @@ const documentInsertShape = {
     .string()
     .optional()
     .describe('Your own external reference; look it up later with billingo_get_document.'),
+  // Verified live 2026-10-14: the invoice prints the bank account given here; without
+  // it Billingo picks a default one.
+  bank_account_id: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      'Bank account printed on the document (billingo_list_bank_accounts). Without it Billingo uses a default account.',
+    ),
+  // Verified live 2026-10-14: a final invoice with advance_invoice [id] deducts that
+  // advance invoice as a negative line and lists it in related_documents.
+  advance_invoice: z
+    .array(z.number().int())
+    .optional()
+    .describe(
+      'Ids of advance invoices (type "advance") this final invoice settles; each is deducted.',
+    ),
   items: z.array(documentItemSchema).min(1).describe('At least one line item.'),
 };
 

@@ -65,6 +65,33 @@ describe('document write tool surface', () => {
 });
 
 describe('billingo_create_document', () => {
+  it('passes bank_account_id and advance_invoice through to the API', async () => {
+    let body: Record<string, unknown> = {};
+    server.use(
+      http.post('https://api.billingo.hu/v3/documents', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 1 });
+      }),
+    );
+    const args = z.object(byName('billingo_create_document').inputSchema).parse({
+      partner_id: 1,
+      block_id: 1,
+      type: 'invoice',
+      fulfillment_date: '2026-10-14',
+      due_date: '2026-10-14',
+      payment_method: 'wire_transfer',
+      language: 'hu',
+      currency: 'HUF',
+      bank_account_id: 285666,
+      advance_invoice: [139017042],
+      items: [
+        { name: 'x', unit_price: 1, unit_price_type: 'net', quantity: 1, unit: 'db', vat: '27%' },
+      ],
+    });
+    await byName('billingo_create_document').handler(args, ctx);
+    expect(body).toMatchObject({ bank_account_id: 285666, advance_invoice: [139017042] });
+  });
+
   it('posts the document and returns it', async () => {
     let body: unknown = null;
     server.use(
