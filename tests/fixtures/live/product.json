@@ -1,0 +1,26 @@
+{
+  "status": 200,
+  "body": {
+    "id": 28688991,
+    "name": "Example item",
+    "comment": "",
+    "currency": "HUF",
+    "vat": "27%",
+    "net_unit_price": 1000,
+    "gross_unit_price": 1270,
+    "unit": "db",
+    "general_ledger_number": "",
+    "general_ledger_taxcode": "",
+    "entitlement": null,
+    "ean": "",
+    "sku": "",
+    "is_manage": false,
+    "purchase_price": 0,
+    "is_generate_erase_code": false,
+    "connect_product_id": null,
+    "apply_discount": false,
+    "apply_quantity": false,
+    "is_connect_product": false,
+    "is_deposit_fee": false
+  }
+}

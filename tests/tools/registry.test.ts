@@ -74,10 +74,42 @@ describe('jsonResult', () => {
   });
 });
 
+describe('jsonResult structuredContent', () => {
+  it('mirrors an object result as structuredContent', () => {
+    expect(jsonResult({ id: 1 }).structuredContent).toEqual({ id: 1 });
+  });
+
+  it('adds no structuredContent for an array or an empty body — the protocol requires an object', () => {
+    expect(jsonResult([{ id: 1 }]).structuredContent).toBeUndefined();
+    expect(jsonResult(null).structuredContent).toBeUndefined();
+  });
+
+  it('uses an explicit wrapper when the tool passes one', () => {
+    const result = jsonResult([{ price: 1 }], undefined, { payments: [{ price: 1 }] });
+    expect(result.structuredContent).toEqual({ payments: [{ price: 1 }] });
+    expect(result.content[0]).toMatchObject({
+      text: expect.stringContaining('"price": 1') as string,
+    });
+  });
+});
+
 describe('errorResult', () => {
   it('marks the result as an error and keeps the message', () => {
     const result = errorResult('Nope.');
     expect(result.isError).toBe(true);
     expect(result.content[0]).toEqual({ type: 'text', text: 'Nope.' });
+  });
+
+  it('adds the error details as a JSON block a script can branch on', () => {
+    const result = errorResult('Not there.', { code: 'not_found', retryable: false, status: 404 });
+    const second = result.content[1];
+    expect(second?.type).toBe('text');
+    expect(JSON.parse((second as { text: string }).text)).toEqual({
+      error: { code: 'not_found', retryable: false, status: 404, message: 'Not there.' },
+    });
+  });
+
+  it('puts nothing in structuredContent — the SDK client would validate it against the outputSchema', () => {
+    expect(errorResult('x').structuredContent).toBeUndefined();
   });
 });

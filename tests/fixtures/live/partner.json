@@ -1,0 +1,49 @@
+{
+  "status": 200,
+  "body": {
+    "id": 1966605751,
+    "name": "Example item",
+    "address": {
+      "country_code": "HU",
+      "post_code": "1011",
+      "city": "Budapest",
+      "address": "Példa utca 1."
+    },
+    "emails": ["billing@example.com"],
+    "taxcode": "12345678-2-42",
+    "iban": "",
+    "swift": "",
+    "account_number": "",
+    "phone": "",
+    "general_ledger_number": "",
+    "tax_type": "",
+    "custom_billing_settings": {
+      "payment_method": null,
+      "document_form": null,
+      "due_days": null,
+      "document_currency": null,
+      "template_language_code": null,
+      "discount": null,
+      "custom_label": null
+    },
+    "group_member_tax_number": "",
+    "giro_settings": {
+      "giro_default_settings": true,
+      "giro_payment_request_enabled": false,
+      "giro_different_amount_allowed": false
+    },
+    "partner_shipping": {
+      "match": true,
+      "name": "",
+      "mode": "none",
+      "address": {
+        "country_code": "HU",
+        "post_code": "1011",
+        "city": "Budapest",
+        "address": "Példa utca 1."
+      }
+    },
+    "internal_comment": "",
+    "partner_show_type": "show_all"
+  }
+}

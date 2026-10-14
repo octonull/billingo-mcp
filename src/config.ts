@@ -1,5 +1,7 @@
 // src/config.ts
 import { z } from 'zod';
+import { parseToolCategories } from './tools/index.js';
+import type { ToolCategory } from './tools/index.js';
 
 const DEFAULT_BASE_URL = 'https://api.billingo.hu/v3';
 
@@ -22,12 +24,26 @@ const stdioSchema = z.object({
   BILLINGO_API_KEY: z.string().min(1, 'is required (your Billingo API key)'),
   BILLINGO_BASE_URL: z.url('must be a valid URL').default(DEFAULT_BASE_URL),
   BILLINGO_ALLOW_WRITE: z.string().optional(),
+  BILLINGO_TOOL_CATEGORIES: z.string().optional(),
 });
 
 export interface StdioConfig {
   apiKey: string;
   baseUrl: string;
   allowWrite: boolean;
+  /** Tool groups to register; undefined registers all of them. */
+  categories: ToolCategory[] | undefined;
+}
+
+function loadCategories(raw: string | undefined): ToolCategory[] | undefined {
+  try {
+    return parseToolCategories(raw);
+  } catch (error) {
+    throw new Error(
+      `Invalid configuration — BILLINGO_TOOL_CATEGORIES: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
 }
 
 export function loadStdioConfig(env: NodeJS.ProcessEnv): StdioConfig {
@@ -37,6 +53,7 @@ export function loadStdioConfig(env: NodeJS.ProcessEnv): StdioConfig {
     apiKey: parsed.data.BILLINGO_API_KEY,
     baseUrl: parsed.data.BILLINGO_BASE_URL,
     allowWrite: parseBooleanFlag(parsed.data.BILLINGO_ALLOW_WRITE),
+    categories: loadCategories(parsed.data.BILLINGO_TOOL_CATEGORIES),
   };
 }
 

@@ -1,8 +1,10 @@
 // src/tools/bank-accounts.ts
 import { z } from 'zod';
+import { bankAccountSchema, paginatedSchema } from '../billingo/schemas.js';
 import { currencySchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
+import { patchDescription, patchRecord, patchShape } from './merge.js';
 import { defineTool, jsonResult } from './registry.js';
 import type { AnyToolDefinition } from './registry.js';
 
@@ -13,7 +15,7 @@ import type { AnyToolDefinition } from './registry.js';
  */
 const bankAccountFields = {
   name: z.string().min(1).describe('Display name of the account, e.g. "OTP HUF".'),
-  account_number: z.string().min(1).describe('Domestic account number. Required.'),
+  account_number: z.string().min(1).describe('Domestic account number.'),
   currency: currencySchema,
   account_number_iban: z.string().optional().describe('IBAN.'),
   swift: z.string().optional(),
@@ -25,6 +27,7 @@ const listBankAccounts = defineTool({
   title: 'List bank accounts',
   description: 'Lists the bank accounts configured on the organization.',
   inputSchema: { ...pageParamsShape },
+  outputSchema: paginatedSchema(bankAccountSchema),
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ page, per_page }, { client }) => {
     const result = await client.get<Paginated<unknown>>('/bank-accounts', {
@@ -40,6 +43,7 @@ const getBankAccount = defineTool({
   title: 'Get bank account',
   description: 'Returns a single bank account by id.',
   inputSchema: { id: z.number().int().describe('Bank account id.') },
+  outputSchema: bankAccountSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ id }, { client }) =>
     jsonResult(await client.get(`/bank-accounts/${String(id)}`)),
@@ -61,24 +65,39 @@ const createBankAccount = defineTool({
     jsonResult(await client.post('/bank-accounts', { body: args })),
 });
 
+/** Writable fields of components.schemas.BankAccount (need_qr is deprecated and left out). */
+const BANK_ACCOUNT_WRITABLE = [
+  'name',
+  'account_number',
+  'account_number_iban',
+  'swift',
+  'currency',
+] as const;
+
 const updateBankAccount = defineTool({
   name: 'billingo_update_bank_account',
   scope: 'write',
   title: 'Update bank account',
-  description:
-    'Replaces an existing bank account. PUT is a full update, not a patch: the API re-validates the entire required field set (name, account_number, currency) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { name }) will fail with a 422. To update safely: call billingo_get_bank_account first, merge your changes into the full record, and send that complete result here.',
+  description: patchDescription('bank account'),
   inputSchema: {
     id: z.number().int().describe('Bank account id.'),
-    ...bankAccountFields,
+    ...patchShape(bankAccountFields),
   },
+  // destructiveHint: true because the given fields overwrite the stored values.
   annotations: {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },
-  handler: async ({ id, ...body }, { client }) =>
-    jsonResult(await client.put(`/bank-accounts/${String(id)}`, { body })),
+  handler: async ({ id, ...patch }, { client }) =>
+    jsonResult(
+      await patchRecord(
+        client,
+        { path: `/bank-accounts/${String(id)}`, writable: BANK_ACCOUNT_WRITABLE },
+        patch,
+      ),
+    ),
 });
 
 const deleteBankAccount = defineTool({

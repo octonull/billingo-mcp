@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "body": {
+    "id": 45980708,
+    "organization_id": 1,
+    "category": "other",
+    "paid_at": null,
+    "fulfillment_date": "2026-10-14",
+    "partner": {
+      "id": 1966605751,
+      "name": "Example item",
+      "tax_code": "12345678-2-42",
+      "address": {
+        "country_code": "HU",
+        "post_code": "1011",
+        "city": "Budapest",
+        "address": "Példa utca 1."
+      },
+      "iban": "",
+      "swift": "",
+      "account_number": "",
+      "phone": "",
+      "internal_comment": "",
+      "group_member_tax_number": ""
+    },
+    "invoice_number": "S-1",
+    "currency": "HUF",
+    "conversion_rate": 1,
+    "total_gross": 12700,
+    "total_gross_local": 12700,
+    "total_vat_amount": 2700,
+    "total_vat_amount_local": 2700,
+    "invoice_date": "2026-10-14",
+    "due_date": "2026-10-14",
+    "payment_method": "cash",
+    "comment": "",
+    "items": [],
+    "created_by_nav": false
+  }
+}

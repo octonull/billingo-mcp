@@ -1,0 +1,400 @@
+{
+  "status": 200,
+  "body": {
+    "total": 24,
+    "per_page": 5,
+    "current_page": 1,
+    "last_page": 5,
+    "prev_page_url": null,
+    "next_page_url": "https://api.billingo.hu/v3/documents?page=2",
+    "data": [
+      {
+        "id": 138999789,
+        "invoice_number": "2026-24",
+        "type": "invoice",
+        "correction_type": "invoice",
+        "cancelled": false,
+        "block_id": 321944,
+        "payment_status": "partially_paid",
+        "payment_method": "wire_transfer",
+        "gross_total": 3040,
+        "currency": "HUF",
+        "conversion_rate": 1,
+        "invoice_date": "2026-10-14",
+        "fulfillment_date": "2026-10-14",
+        "due_date": "2026-10-14",
+        "paid_date": "2026-10-14",
+        "organization": {
+          "name": "Example Kft.",
+          "tax_number": "12345678-2-42",
+          "bank_account": {
+            "id": 285665,
+            "name": "Example Kft.",
+            "account_number": "11773016-11111018-00000000",
+            "account_number_iban": "",
+            "swift": ""
+          },
+          "address": {
+            "country_code": "HU",
+            "post_code": "1011",
+            "city": "Budapest",
+            "address": "Példa utca 1."
+          },
+          "small_taxpayer": false,
+          "ev_number": "01-09-000000",
+          "eu_tax_number": "",
+          "cash_settled": false
+        },
+        "partner": {
+          "id": 1966605751,
+          "name": "Example item",
+          "address": {
+            "country_code": "HU",
+            "post_code": "1011",
+            "city": "Budapest",
+            "address": "Példa utca 1."
+          },
+          "emails": ["billing@example.com"],
+          "taxcode": "12345678-2-42",
+          "iban": "",
+          "swift": "",
+          "account_number": "",
+          "phone": "",
+          "general_ledger_number": "",
+          "tax_type": "",
+          "custom_billing_settings": {
+            "payment_method": null,
+            "document_form": null,
+            "due_days": null,
+            "document_currency": null,
+            "template_language_code": null,
+            "discount": null,
+            "custom_label": null
+          },
+          "group_member_tax_number": "",
+          "giro_settings": {
+            "giro_default_settings": true,
+            "giro_payment_request_enabled": false,
+            "giro_different_amount_allowed": false
+          },
+          "partner_shipping": {
+            "match": true,
+            "name": "",
+            "mode": "none",
+            "address": {
+              "country_code": "HU",
+              "post_code": "1011",
+              "city": "Budapest",
+              "address": "Példa utca 1."
+            }
+          },
+          "internal_comment": "",
+          "partner_show_type": null
+        },
+        "document_partner": {
+          "id": 1966605751,
+          "name": "Example item",
+          "address": {
+            "country_code": "HU",
+            "post_code": "1011",
+            "city": "Budapest",
+            "address": "Példa utca 1."
+          },
+          "emails": ["billing@example.com"],
+          "taxcode": "12345678-2-42",
+          "iban": "",
+          "swift": "",
+          "account_number": "",
+          "phone": "",
+          "tax_type": "",
+          "partner_shipping": {
+            "match": true,
+            "name": "",
+            "mode": "none",
+            "address": {
+              "country_code": "HU",
+              "post_code": "1011",
+              "city": "Budapest",
+              "address": "Példa utca 1."
+            }
+          }
+        },
+        "electronic": false,
+        "comment": "",
+        "tags": [],
+        "notification_status": "none",
+        "language": "hu",
+        "items": [
+          {
+            "product_id": 28688991,
+            "name": "Example item",
+            "net_unit_amount": 1000,
+            "quantity": 2,
+            "unit": "db",
+            "net_amount": 2000,
+            "gross_amount": 2540,
+            "vat": "27%",
+            "vat_amount": 540,
+            "entitlement": null,
+            "comment": "",
+            "sku": null,
+            "data_eraser_codes": null,
+            "is_deposit_fee": false,
+            "ean": null,
+            "is_connect_product": false,
+            "connected_item": null,
+            "connect_document_item_setting": null
+          },
+          {
+            "product_id": null,
+            "name": "Example item",
+            "net_unit_amount": 500,
+            "quantity": 1,
+            "unit": "db",
+            "net_amount": 500,
+            "gross_amount": 500,
+            "vat": "AAM",
+            "vat_amount": 0,
+            "entitlement": null,
+            "comment": "",
+            "sku": null,
+            "data_eraser_codes": null,
+            "is_deposit_fee": false,
+            "ean": null,
+            "is_connect_product": false,
+            "connected_item": null,
+            "connect_document_item_setting": null
+          }
+        ],
+        "summary": {
+          "net_amount": 2500,
+          "net_amount_local": 2500,
+          "gross_amount_local": 3040,
+          "vat_amount": 540,
+          "vat_amount_local": 540,
+          "vat_rate_summary": [
+            {
+              "vat_name": "27%",
+              "vat_percentage": 0.27,
+              "vat_rate_net_amount": 2000,
+              "vat_rate_vat_amount": 540,
+              "vat_rate_vat_amount_local": 540,
+              "vat_rate_gross_amount": 2540
+            },
+            {
+              "vat_name": "AAM",
+              "vat_percentage": 0,
+              "vat_rate_net_amount": 500,
+              "vat_rate_vat_amount": 0,
+              "vat_rate_vat_amount_local": 0,
+              "vat_rate_gross_amount": 500
+            }
+          ]
+        },
+        "settings": {
+          "mediated_service": false,
+          "without_financial_fulfillment": false,
+          "online_payment": "no",
+          "should_send_email": false,
+          "round": "none",
+          "no_send_onlineszamla_by_user": false,
+          "order_number": "",
+          "place_id": null,
+          "instant_payment": true,
+          "selected_type": null,
+          "dont_send_to_nav_reason": null,
+          "instant_payment_request": null,
+          "is_waybill_hide_prices": false
+        },
+        "related_documents": [],
+        "online_szamla_status": "processing",
+        "kobak_receipt_status": null,
+        "kobak_receipt_message": null,
+        "discount": null,
+        "recurring_id": null
+      },
+      {
+        "id": 138998136,
+        "invoice_number": "2026-23",
+        "type": "cancellation",
+        "correction_type": "cancellation",
+        "cancelled": false,
+        "block_id": 321944,
+        "payment_status": "none",
+        "payment_method": "wire_transfer",
+        "gross_total": -1270,
+        "currency": "HUF",
+        "conversion_rate": 1,
+        "invoice_date": "2026-10-14",
+        "fulfillment_date": "2026-10-14",
+        "due_date": "2026-10-14",
+        "paid_date": "2026-10-14",
+        "organization": {
+          "name": "Example Kft.",
+          "tax_number": "12345678-2-42",
+          "bank_account": {
+            "id": 285665,
+            "name": "Example Kft.",
+            "account_number": "11773016-11111018-00000000",
+            "account_number_iban": "",
+            "swift": ""
+          },
+          "address": {
+            "country_code": "HU",
+            "post_code": "1011",
+            "city": "Budapest",
+            "address": "Példa utca 1."
+          },
+          "small_taxpayer": false,
+          "ev_number": "01-09-000000",
+          "eu_tax_number": "",
+          "cash_settled": false
+        },
+        "partner": {
+          "id": 1966604760,
+          "name": "Example item",
+          "address": {
+            "country_code": "HU",
+            "post_code": "1011",
+            "city": "Budapest",
+            "address": "Példa utca 1."
+          },
+          "emails": [],
+          "taxcode": "",
+          "iban": "",
+          "swift": "",
+          "account_number": "",
+          "phone": "",
+          "general_ledger_number": "",
+          "tax_type": "",
+          "custom_billing_settings": {
+            "payment_method": null,
+            "document_form": null,
+            "due_days": null,
+            "document_currency": null,
+            "template_language_code": null,
+            "discount": null,
+            "custom_label": null
+          },
+          "group_member_tax_number": "",
+          "giro_settings": {
+            "giro_default_settings": true,
+            "giro_payment_request_enabled": false,
+            "giro_different_amount_allowed": false
+          },
+          "partner_shipping": {
+            "match": true,
+            "name": "",
+            "mode": "none",
+            "address": {
+              "country_code": "HU",
+              "post_code": "1011",
+              "city": "Budapest",
+              "address": "Példa utca 1."
+            }
+          },
+          "internal_comment": "",
+          "partner_show_type": null
+        },
+        "document_partner": {
+          "id": 1966604760,
+          "name": "Example item",
+          "address": {
+            "country_code": "HU",
+            "post_code": "1011",
+            "city": "Budapest",
+            "address": "Példa utca 1."
+          },
+          "emails": [],
+          "taxcode": "",
+          "iban": "",
+          "swift": "",
+          "account_number": "",
+          "phone": "",
+          "tax_type": "",
+          "partner_shipping": {
+            "match": true,
+            "name": "",
+            "mode": "none",
+            "address": {
+              "country_code": "HU",
+              "post_code": "1011",
+              "city": "Budapest",
+              "address": "Példa utca 1."
+            }
+          }
+        },
+        "electronic": false,
+        "comment": "",
+        "tags": [],
+        "notification_status": "none",
+        "language": "hu",
+        "items": [
+          {
+            "product_id": null,
+            "name": "Example item",
+            "net_unit_amount": -1000,
+            "quantity": 1,
+            "unit": "db",
+            "net_amount": -1000,
+            "gross_amount": -1270,
+            "vat": "27%",
+            "vat_amount": -270,
+            "entitlement": null,
+            "comment": "",
+            "sku": null,
+            "data_eraser_codes": null,
+            "is_deposit_fee": false,
+            "ean": null,
+            "is_connect_product": false,
+            "connected_item": null,
+            "connect_document_item_setting": null
+          }
+        ],
+        "summary": {
+          "net_amount": -1000,
+          "net_amount_local": -1000,
+          "gross_amount_local": -1270,
+          "vat_amount": -270,
+          "vat_amount_local": -270,
+          "vat_rate_summary": [
+            {
+              "vat_name": "27%",
+              "vat_percentage": 0.27,
+              "vat_rate_net_amount": -1000,
+              "vat_rate_vat_amount": -270,
+              "vat_rate_vat_amount_local": -270,
+              "vat_rate_gross_amount": -1270
+            }
+          ]
+        },
+        "settings": {
+          "mediated_service": false,
+          "without_financial_fulfillment": false,
+          "online_payment": "no",
+          "should_send_email": false,
+          "round": "none",
+          "no_send_onlineszamla_by_user": false,
+          "order_number": "",
+          "place_id": null,
+          "instant_payment": true,
+          "selected_type": null,
+          "dont_send_to_nav_reason": null,
+          "instant_payment_request": null,
+          "is_waybill_hide_prices": false
+        },
+        "related_documents": [
+          {
+            "id": 138998132,
+            "invoice_number": "2026-22"
+          }
+        ],
+        "online_szamla_status": "no_online_szamla_settings",
+        "kobak_receipt_status": null,
+        "kobak_receipt_message": null,
+        "discount": null,
+        "recurring_id": null
+      }
+    ]
+  }
+}

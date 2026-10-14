@@ -5,6 +5,7 @@ import {
   paymentMethodSchema,
   vatSchema,
   documentTypeSchema,
+  documentLanguageSchema,
 } from '../../billingo/enums.js';
 import { isoDate } from '../../billingo/dates.js';
 import { defineTool, jsonResult } from '../registry.js';
@@ -29,13 +30,6 @@ const NAV_WARNING =
  * that DocumentInsertType rejects.
  */
 const documentInsertTypeSchema = z.enum(['advance', 'draft', 'invoice', 'proforma']);
-
-/**
- * Per spec components.schemas.DocumentLanguage.enum. The brief guessed
- * ['hu','en','de','fr','it','hr','ro','sk','es','cz','pl'] — wrong on both ends: "es",
- * "cz" and "pl" do not exist, and "us" (present in the real enum) was missing.
- */
-const documentLanguageSchema = z.enum(['de', 'en', 'fr', 'hr', 'hu', 'it', 'ro', 'sk', 'us']);
 
 /** Per spec components.schemas.Round.enum — the brief invented a "half_up" value. */
 const roundSchema = z.enum(['five', 'none', 'one', 'ten']);
@@ -141,6 +135,23 @@ const documentInsertShape = {
     .string()
     .optional()
     .describe('Your own external reference; look it up later with billingo_get_document.'),
+  // Verified live 2026-10-14: the invoice prints the bank account given here; without
+  // it Billingo picks a default one.
+  bank_account_id: z
+    .number()
+    .int()
+    .optional()
+    .describe(
+      'Bank account printed on the document (billingo_list_bank_accounts). Without it Billingo uses a default account.',
+    ),
+  // Verified live 2026-10-14: a final invoice with advance_invoice [id] deducts that
+  // advance invoice as a negative line and lists it in related_documents.
+  advance_invoice: z
+    .array(z.number().int())
+    .optional()
+    .describe(
+      'Ids of advance invoices (type "advance") this final invoice settles; each is deducted.',
+    ),
   items: z.array(documentItemSchema).min(1).describe('At least one line item.'),
 };
 
@@ -201,7 +212,15 @@ const receiptInsertShape = {
   payment_method: paymentMethodSchema,
   currency: currencySchema,
   conversion_rate: z.number().optional().describe(CONVERSION_RATE_DESCRIPTION),
-  electronic: z.boolean().optional().describe('Issue as an e-invoice.'),
+  // Verified live 2026-10-14: POST /documents/receipt without `electronic` 422s with
+  // "The electronic field must be present.", although the spec gives it a default. The
+  // finalize PUT shares this shape and was not exercised; it is assumed to validate the
+  // same way, and a draft read back from the API already carries `electronic`.
+  electronic: z
+    .boolean()
+    .describe(
+      'Issue as an electronic receipt. Required by the API; send false for a paper receipt.',
+    ),
   items: z.array(receiptItemSchema).min(1).describe('At least one line item.'),
   vendor_id: z.string().optional().describe('Your own external reference.'),
 };
@@ -210,7 +229,7 @@ const createReceipt = defineTool({
   name: 'billingo_create_receipt',
   scope: 'write',
   title: 'Create receipt',
-  description: `Creates a receipt (nyugta). ${NAV_WARNING}`,
+  description: `Creates a receipt (nyugta). It needs a document block whose type is "receipt" (billingo_list_document_blocks shows each block's type); an invoice block is refused. ${NAV_WARNING}`,
   inputSchema: receiptInsertShape,
   annotations: issuing,
   handler: async (args, { client }) =>
@@ -232,7 +251,7 @@ const finalizeReceiptDraft = defineTool({
   name: 'billingo_finalize_receipt_draft',
   scope: 'write',
   title: 'Finalize draft into a receipt',
-  description: `Finalizes an existing draft into a real receipt. This issues the receipt and reports it to NAV — it CANNOT be undone. PUT /documents/receipt/{id} is a full replace, not a partial conversion: the API requires the complete receipt body, not just the id. Fetch the draft first with billingo_get_document, then pass its fields back here — with type changed from "draft" to "receipt" — along with any other changes. ${NAV_WARNING}`,
+  description: `Finalizes an existing draft into a real receipt. This issues the receipt and reports it to NAV — it CANNOT be undone. PUT /documents/receipt/{id} is a full replace, not a partial conversion: the API requires the complete receipt body, not just the id. Fetch the draft first with billingo_get_document, then pass its fields back here — with type changed from "draft" to "receipt" — along with any other changes. The draft's document block must be of type "receipt". ${NAV_WARNING}`,
   inputSchema: { id: z.number().int().describe('Draft document id.'), ...receiptInsertShape },
   annotations: issuing,
   handler: async ({ id, ...body }, { client }) =>
@@ -255,8 +274,11 @@ const copyDocument = defineTool({
   scope: 'write',
   title: 'Copy document',
   description:
-    'Copies an existing document into a new one with the same content. Useful for repeating a recurring invoice. If the source document is not a draft, the copy is issued immediately and reported to NAV, exactly like creating that document type — the same irreversibility applies. Confirm the details with the user before calling this.',
+    'Copies an existing document into a new draft with the same content. Useful for repeating a recurring invoice: check the draft, then issue it with billingo_finalize_draft (which reports it to NAV), or delete it with billingo_delete_document. For a receipt, check the returned `type` and finalize a receipt draft with billingo_finalize_receipt_draft.',
   inputSchema: { id: z.number().int().describe('Document id to copy.') },
+  // Verified live 2026-10-14 for an issued invoice, a proforma and a draft: each copy
+  // came back with type "draft" and no invoice number; nothing was issued until finalize.
+  // Receipts and the other document types were not exercised.
   annotations: issuing,
   handler: async ({ id }, { client }) =>
     jsonResult(await client.post(`/documents/${String(id)}/copy`)),
@@ -294,7 +316,7 @@ const updatePayment = defineTool({
   scope: 'write',
   title: 'Update document payments',
   description:
-    'Replaces the payment history of a document. This records money received; it does not issue anything to NAV.',
+    'Replaces the WHOLE payment history of a document with the list you send: any existing payment left out of `payments` is deleted. To add a payment, first read the current history with billingo_get_document_payments, append the new entry, and send the complete list. This records money received; it does not issue anything to NAV.',
   inputSchema: {
     id: z.number().int().describe('Document id.'),
     payments: z.array(
@@ -308,9 +330,12 @@ const updatePayment = defineTool({
       }),
     ),
   },
+  // destructiveHint: true because the PUT is a full replace. Verified live 2026-10-14:
+  // PUT two payments, then PUT one of them -> GET /payments returns one, the other is
+  // gone and payment_status drops to partially_paid.
   annotations: {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },

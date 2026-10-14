@@ -1,0 +1,31 @@
+{
+  "status": 200,
+  "body": {
+    "total": 2,
+    "per_page": 25,
+    "current_page": 1,
+    "last_page": 1,
+    "prev_page_url": null,
+    "next_page_url": null,
+    "data": [
+      {
+        "id": 285666,
+        "name": "Example Kft.",
+        "account_number": "11773016-11111018-00000000",
+        "account_number_iban": "",
+        "swift": "",
+        "currency": "HUF",
+        "need_qr": false
+      },
+      {
+        "id": 285665,
+        "name": "Example Kft.",
+        "account_number": "11773016-11111018-00000000",
+        "account_number_iban": "",
+        "swift": "",
+        "currency": "HUF",
+        "need_qr": false
+      }
+    ]
+  }
+}

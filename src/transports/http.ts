@@ -7,9 +7,14 @@ import { BillingoClient } from '../billingo/client.js';
 import { loadHttpConfig, parseBooleanFlag } from '../config.js';
 import type { HttpConfig } from '../config.js';
 import { createServer } from '../server.js';
+import { parseToolCategories } from '../tools/index.js';
+import type { ToolCategory } from '../tools/index.js';
 
 export const API_KEY_HEADER = 'x-billingo-api-key';
 export const ALLOW_WRITE_HEADER = 'x-billingo-allow-write';
+export const TOOL_CATEGORIES_HEADER = 'x-billingo-tool-categories';
+/** Same list as the header, for clients that can set a URL but not a header. */
+export const TOOL_CATEGORIES_QUERY = 'categories';
 
 function readHeader(req: IncomingMessage, name: string): string | undefined {
   const value = req.headers[name];
@@ -60,9 +65,30 @@ export function createHandler(
       return;
     }
 
+    let categories: ToolCategory[] | undefined;
+    try {
+      const fromQuery = new URL(req.url ?? '/', 'http://localhost').searchParams.get(
+        TOOL_CATEGORIES_QUERY,
+      );
+      // The header wins when it holds a value; an empty header falls back to the query.
+      const fromHeader = readHeader(req, TOOL_CATEGORIES_HEADER);
+      categories = parseToolCategories(
+        fromHeader !== undefined && fromHeader.trim() !== ''
+          ? fromHeader
+          : (fromQuery ?? undefined),
+      );
+    } catch (error) {
+      sendJson(res, 400, {
+        jsonrpc: '2.0',
+        error: { code: -32602, message: error instanceof Error ? error.message : String(error) },
+        id: null,
+      });
+      return;
+    }
+
     const allowWrite = parseBooleanFlag(readHeader(req, ALLOW_WRITE_HEADER));
     const client = new BillingoClient({ apiKey, baseUrl: config.baseUrl });
-    const server = createServer({ client, allowWrite });
+    const server = createServer({ client, allowWrite, categories });
     // sessionIdGenerator is intentionally omitted rather than set to `undefined`: under
     // exactOptionalPropertyTypes, omitting an optional key and assigning it `undefined`
     // are different things to the type checker, and the SDK treats them the same at

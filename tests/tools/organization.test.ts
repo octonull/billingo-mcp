@@ -141,3 +141,16 @@ describe('organization tools', () => {
     expect(schema.parse({ from: 'EUR', to: 'HUF' })).toEqual({ from: 'EUR', to: 'HUF' });
   });
 });
+
+describe('billingo_check_tax_number input', () => {
+  it('accepts only the hyphenated 11-digit form — the API 422s on 8 or 11 bare digits', () => {
+    const schema = z.object(byName('billingo_check_tax_number').inputSchema);
+    expect(schema.safeParse({ tax_number: '12345678-2-42' }).success).toBe(true);
+    expect(schema.safeParse({ tax_number: '12345678' }).success).toBe(false);
+    expect(schema.safeParse({ tax_number: '12345678242' }).success).toBe(false);
+  });
+
+  it('says the lookup needs a live NAV connection', () => {
+    expect(byName('billingo_check_tax_number').description).toContain('NAV');
+  });
+});

@@ -13,7 +13,11 @@ export function buildStdioServer(env: NodeJS.ProcessEnv): {
   const config = loadStdioConfig(env);
   const client = new BillingoClient({ apiKey: config.apiKey, baseUrl: config.baseUrl });
   return {
-    server: createServer({ client, allowWrite: config.allowWrite }),
+    server: createServer({
+      client,
+      allowWrite: config.allowWrite,
+      categories: config.categories,
+    }),
     allowWrite: config.allowWrite,
   };
 }

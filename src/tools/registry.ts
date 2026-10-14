@@ -2,6 +2,7 @@
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 import type { z, ZodRawShape } from 'zod';
 import type { BillingoClient } from '../billingo/client.js';
+import type { ToolErrorDetails } from '../billingo/errors.js';
 
 export type ToolScope = 'read' | 'write';
 
@@ -19,6 +20,12 @@ export interface ToolDefinition<TShape extends ZodRawShape> {
   title: string;
   description: string;
   inputSchema: TShape;
+  /**
+   * Published as the tool's outputSchema. A tool that declares one must return
+   * `structuredContent` matching it on every success (the SDK rejects the call
+   * otherwise), so only tools whose every success path is a JSON object declare it.
+   */
+  outputSchema?: z.ZodType;
   annotations: ToolAnnotations;
   /**
    * Declared with method-shorthand syntax (not `handler: (args) => ...`) so TypeScript
@@ -59,7 +66,11 @@ export function filterByScope(
  * "something went wrong" — it has already seen "null" used both ways elsewhere. Spell
  * out success explicitly instead.
  */
-export function jsonResult(value: unknown, summary?: string): CallToolResult {
+export function jsonResult(
+  value: unknown,
+  summary?: string,
+  structured?: Record<string, unknown>,
+): CallToolResult {
   const content: CallToolResult['content'] = [];
   if (summary !== undefined) content.push({ type: 'text', text: summary });
   const text =
@@ -67,9 +78,37 @@ export function jsonResult(value: unknown, summary?: string): CallToolResult {
       ? 'Success. The API returned no content (empty body).'
       : JSON.stringify(value, null, 2);
   content.push({ type: 'text', text });
-  return { content };
+  // The same data as structuredContent, so code-mode hosts can use it without parsing
+  // text. Only objects qualify (the protocol requires an object); a tool whose API
+  // answer is a bare array passes its own wrapper as `structured`. The server keeps it
+  // only for tools that publish an outputSchema (see runTool in server.ts).
+  const structuredContent = structured ?? (isPlainObject(value) ? value : undefined);
+  return structuredContent === undefined ? { content } : { content, structuredContent };
 }
 
-export function errorResult(message: string): CallToolResult {
-  return { content: [{ type: 'text', text: message }], isError: true };
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * A failed call. The first block is the message for the model; the second is JSON,
+ * `{"error": {code, retryable, status?, retry_after_seconds?, fields?, trace_id?, message}}`,
+ * with a stable code a script can branch on.
+ *
+ * The details are a text block, not `structuredContent`, on purpose: the TypeScript SDK
+ * client (1.29) validates `structuredContent` against the tool's outputSchema even when
+ * `isError` is true, so a structured error on a tool with an output schema would turn
+ * every API error into a protocol error for that client.
+ */
+export function errorResult(
+  message: string,
+  details: ToolErrorDetails = { code: 'client_error', retryable: false },
+): CallToolResult {
+  return {
+    content: [
+      { type: 'text', text: message },
+      { type: 'text', text: JSON.stringify({ error: { ...details, message } }) },
+    ],
+    isError: true,
+  };
 }

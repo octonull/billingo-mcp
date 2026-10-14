@@ -211,21 +211,23 @@ hozzáféréshez.
 
 ## 🔧 Konfiguráció
 
-| Változó                  | Transport  | Kötelező | Alapérték                             | Jelentés                                                                                                                                                           |
-| ------------------------ | ---------- | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `BILLINGO_API_KEY`       | csak stdio | igen     | —                                     | A Billingo API kulcsod. HTTP módban nem ezt olvassa a szerver — lásd lent.                                                                                         |
-| `BILLINGO_ALLOW_WRITE`   | csak stdio | nem      | `false`                               | `"true"` vagy `"1"` érték engedélyezi az író (write) eszközöket ennél a stdio folyamatnál. Bármi más érték (elgépelést is beleértve) `false`-nak számít.           |
-| `BILLINGO_BASE_URL`      | mindkettő  | nem      | `https://api.billingo.hu/v3`          | Az API alap URL felülírása, pl. proxy mögé állításhoz.                                                                                                             |
-| `PORT`                   | csak HTTP  | nem      | `3000`                                | A HTTP szerver figyelési portja.                                                                                                                                   |
-| `BILLINGO_ALLOWED_HOSTS` | csak HTTP  | nem      | nincs beállítva (védelem kikapcsolva) | Vesszővel elválasztott lista az elfogadott `Host` fejléc-értékekről — DNS-rebinding védelem. **Mindig állítsd be, ha a szerver localhoston kívülről is elérhető.** |
+| Változó                    | Transport  | Kötelező | Alapérték                             | Jelentés                                                                                                                                                                                                            |
+| -------------------------- | ---------- | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BILLINGO_API_KEY`         | csak stdio | igen     | —                                     | A Billingo API kulcsod. HTTP módban nem ezt olvassa a szerver — lásd lent.                                                                                                                                          |
+| `BILLINGO_ALLOW_WRITE`     | csak stdio | nem      | `false`                               | `"true"` vagy `"1"` érték engedélyezi az író (write) eszközöket ennél a stdio folyamatnál. Bármi más érték (elgépelést is beleértve) `false`-nak számít.                                                            |
+| `BILLINGO_TOOL_CATEGORIES` | csak stdio | nem      | mind                                  | Vesszővel elválasztott eszközcsoportok, csak ezek töltődnek be: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `document_blocks`, `documents`. Ismeretlen név esetén a szerver el sem indul. |
+| `BILLINGO_BASE_URL`        | mindkettő  | nem      | `https://api.billingo.hu/v3`          | Az API alap URL felülírása, pl. proxy mögé állításhoz.                                                                                                                                                              |
+| `PORT`                     | csak HTTP  | nem      | `3000`                                | A HTTP szerver figyelési portja.                                                                                                                                                                                    |
+| `BILLINGO_ALLOWED_HOSTS`   | csak HTTP  | nem      | nincs beállítva (védelem kikapcsolva) | Vesszővel elválasztott lista az elfogadott `Host` fejléc-értékekről — DNS-rebinding védelem. **Mindig állítsd be, ha a szerver localhoston kívülről is elérhető.**                                                  |
 
 HTTP módban a hitelesítés és a jogosultsági kör (scope) **kérésenként**, fejlécben
 érkezik:
 
-| Fejléc                   | Kötelező | Jelentés                                                                        |
-| ------------------------ | -------- | ------------------------------------------------------------------------------- |
-| `X-Billingo-Api-Key`     | igen     | A kérésnél használandó Billingo API kulcs. Soha nem kerül tárolásra.            |
-| `X-Billingo-Allow-Write` | nem      | `"true"` vagy `"1"` engedélyezi az író eszközöket, de csak erre az egy kérésre. |
+| Fejléc                       | Kötelező | Jelentés                                                                                                                                                                                                                   |
+| ---------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `X-Billingo-Api-Key`         | igen     | A kérésnél használandó Billingo API kulcs. Soha nem kerül tárolásra.                                                                                                                                                       |
+| `X-Billingo-Allow-Write`     | nem      | `"true"` vagy `"1"` engedélyezi az író eszközöket, de csak erre az egy kérésre.                                                                                                                                            |
+| `X-Billingo-Tool-Categories` | nem      | Ugyanaz a csoportlista, mint a `BILLINGO_TOOL_CATEGORIES`, erre az egy kérésre. Fejlécet nem kezelő kliensnél `?categories=documents,partners` a URL-ben; ha mindkettő meg van adva, a fejléc számít. Ismeretlen név: 400. |
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
@@ -262,12 +264,14 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 ## 🧰 Eszközök
 
 Összesen 49 eszköz: 22 olvasó (mindig látható), 27 író (csak akkor látható, ha az
-írás engedélyezve van).
+írás engedélyezve van). Ha egy kliens minden eszköz sémáját a promptba teszi, a
+`BILLINGO_TOOL_CATEGORIES` (HTTP-n `X-Billingo-Tool-Categories`) beállítással csak a
+szükséges csoportok töltődnek be.
 
 **Szervezet (Organization)** (3 olvasó)
 
 - `billingo_get_organization` — Szervezeti adatok lekérése (adószám, előfizetés, NAV-kapcsolat állapota).
-- `billingo_check_tax_number` — Magyar adószám ellenőrzése.
+- `billingo_check_tax_number` — Magyar adószám ellenőrzése (teljes, kötőjeles adószám; élő NAV-kapcsolat kell).
 - `billingo_get_conversion_rate` — Hivatalos árfolyam lekérése, opcionálisan egy múltbeli dátumra.
 
 **Partnerek** (2 olvasó, 4 író)
@@ -275,7 +279,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 - `billingo_list_partners` — Partnerek listázása.
 - `billingo_get_partner` — Egy partner lekérése.
 - `billingo_create_partner` — Partner létrehozása. _(író)_
-- `billingo_update_partner` — Partner módosítása (teljes felülírás). _(író)_
+- `billingo_update_partner` — Partner módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_guess_partner` — Partner keresése adószám/email alapján, vagy létrehozása. _(író)_
 - `billingo_delete_partner` — Partner törlése. _(író)_
 
@@ -285,7 +289,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 - `billingo_get_product` — Egy termék lekérése.
 - `billingo_get_product_quantity` — Egy termék készletmennyiségének lekérése.
 - `billingo_create_product` — Termék létrehozása. _(író)_
-- `billingo_update_product` — Termék módosítása (teljes felülírás). _(író)_
+- `billingo_update_product` — Termék módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_delete_product` — Termék törlése. _(író)_
 
 **Kiadások (Spendings)** (2 olvasó, 3 író)
@@ -293,7 +297,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 - `billingo_list_spendings` — Kiadások listázása.
 - `billingo_get_spending` — Egy kiadás lekérése.
 - `billingo_create_spending` — Kiadás létrehozása. _(író)_
-- `billingo_update_spending` — Kiadás módosítása (teljes felülírás). _(író)_
+- `billingo_update_spending` — Kiadás módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_delete_spending` — Kiadás törlése. _(író)_
 
 **Bankszámlák** (2 olvasó, 3 író)
@@ -301,7 +305,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 - `billingo_list_bank_accounts` — Bankszámlák listázása.
 - `billingo_get_bank_account` — Egy bankszámla lekérése.
 - `billingo_create_bank_account` — Bankszámla létrehozása. _(író)_
-- `billingo_update_bank_account` — Bankszámla módosítása (teljes felülírás). _(író)_
+- `billingo_update_bank_account` — Bankszámla módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_delete_bank_account` — Bankszámla törlése. _(író)_
 
 **Dokumentumblokkok** (1 olvasó, 1 író)
@@ -323,13 +327,13 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 **Dokumentumok — írás** (9)
 
 - `billingo_create_document` — Dokumentum létrehozása (számla, díjbekérő, piszkozat vagy előlegszámla). _(író)_
-- `billingo_create_receipt` — Nyugta létrehozása. _(író)_
+- `billingo_create_receipt` — Nyugta létrehozása (nyugta típusú számlatömb kell hozzá). _(író)_
 - `billingo_finalize_draft` — Piszkozat véglegesítése számlává — kiállítja és jelenti a NAV felé. _(író)_
 - `billingo_finalize_receipt_draft` — Piszkozat véglegesítése nyugtává. _(író)_
 - `billingo_create_document_from_proforma` — Számla létrehozása díjbekérőből. _(író)_
-- `billingo_copy_document` — Dokumentum másolása. _(író)_
+- `billingo_copy_document` — Dokumentum másolása; számla másolata piszkozat lesz (a `billingo_finalize_draft` állítja ki). _(író)_
 - `billingo_create_modification_document` — Módosító (helyesbítő) dokumentum létrehozása. _(író)_
-- `billingo_update_payment` — Egy dokumentum rögzített kifizetéseinek módosítása. _(író)_
+- `billingo_update_payment` — Egy dokumentum rögzített kifizetéseinek felülírása: a listából kihagyott kifizetés törlődik. _(író)_
 - `billingo_archive_document` — Proforma dokumentum archiválása. _(író)_
 
 **Dokumentumok — export** (1 olvasó)
@@ -342,6 +346,39 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 - `billingo_send_document` — Dokumentum küldése emailben. _(író)_
 - `billingo_delete_document` — Dokumentum törlése (csak piszkozat/ki nem állított dokumentumoknál; egy kiállított számlát stornózni kell helyette). _(író)_
 - `billingo_delete_payment` — Egy dokumentum rögzített kifizetéseinek törlése. _(író)_
+
+### Eredmények és hibák
+
+- **Strukturált eredmény.** 17 olvasó eszköz `outputSchema`-t közöl, és az eredményt
+  `structuredContent`-ként is visszaadja, így a kódból hívó kliensek (code mode) típusos
+  adatot kapnak. A szöveges blokk nem változik. A sémák nyitottak (a Billingo új mezői
+  átmennek), és egy rekord `id`-ján kívül semmit sem várnak el kötelezően; ha egy válasz mégsem illene, az SDK a
+  hívást `Output validation error` hibaként adná vissza, amit az `npm run test:live` minden
+  futáskor ellenőriz. Fájlt adó (`download_document`, `pos_print`, `export_documents`) és
+  sandboxban nem ellenőrizhető (`check_tax_number`, `get_product_quantity`) eszköz nem
+  közöl sémát, ahogy az író eszközök sem.
+- **Hibák.** Egy Billingo API-hiba `isError: true` eredményként jön vissza: az első
+  szöveges blokk az üzenet, a második JSON, `{"error": {"code", "retryable",
+"outcome_unknown", "status", "retry_after_seconds", "fields", "trace_id", "message"}}`.
+  Kódok: `bad_request`, `unauthorized`, `nav_connection_required`,
+  `subscription_required`, `forbidden`, `not_found`, `validation_failed`, `rate_limited`,
+  `pdf_not_ready`, `server_error`, `api_error`, `client_error`, `invalid_arguments`,
+  `export_pending`, `export_failed`. Nem idempotens eszköz szerverhibájánál a `retryable`
+  sosem igaz: ilyenkor `outcome_unknown` jelzi, hogy a számla akár ki is állt, ezért
+  újrapróbálás előtt `vendor_id` alapján ellenőrizd. Egy újrapróbált törlés
+  `not_found` választ adhat, ha az első kísérlet mégis lefutott. Az SDK bemeneti validációs hibái
+  továbbra is csak szövegesek.
+- **Módosítás.** A Billingo API módosításkor a teljes rekordot lecseréli, és amit nem
+  küldünk el, azt törli. Ezért a partner, termék, bankszámla és kiadás `update_*`
+  eszközei előbb kiolvassák a rekordot, és a megadott változtatásokkal együtt a teljes
+  rekordot küldik vissza: elég csak a változó mezőt megadni. Az `update_payment` viszont a
+  teljes kifizetéslistát cseréli, ezért előbb olvasd ki a meglévő kifizetéseket. Mindegyik
+  `destructiveHint: true` jelölésű. Az olvasás és az írás két külön kérés, így ami a kettő
+  között a Billingóban változik, az felülíródik. Forintos kiadásnál a `*_huf` összegek
+  követik a végösszegeket; más pénznemben a Billingo nem vált át, ezért új összeghez,
+  pénznemhez vagy árfolyamhoz a forintos összegeket is meg kell adni. A kiadás tételei
+  (`items`, NAV-importból) nem részei az író modellnek; hogy módosításkor megmaradnak-e,
+  nem ellenőriztük.
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
@@ -361,6 +398,9 @@ konfliktussal buktatja el az `npm install`-t.
 
 További hasznos parancsok: `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run test:coverage`, `npm run build`.
+
+**Architektúra:** a rétegek, egy eszközhívás útja és a módosító eszközök működése ábrával:
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 **Élő smoke teszt csomag:** az `npm run test:live` egy kis tesztcsomagot futtat a
 valódi Billingo sandbox ellen (valódi, de ártalmatlan sandbox adatokat hoz létre és
@@ -557,20 +597,22 @@ claude mcp add --transport http billingo http://localhost:3000 \
 
 ## 🔧 Configuration
 
-| Variable                 | Transport  | Required | Default                      | Meaning                                                                                                                                                               |
-| ------------------------ | ---------- | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BILLINGO_API_KEY`       | stdio only | yes      | —                            | Your Billingo API key. Not read in HTTP mode — see below.                                                                                                             |
-| `BILLINGO_ALLOW_WRITE`   | stdio only | no       | `false`                      | `"true"` or `"1"` enables write tools for this stdio process. Any other value (including a typo) is treated as `false`.                                               |
-| `BILLINGO_BASE_URL`      | both       | no       | `https://api.billingo.hu/v3` | Override the API base URL, e.g. to point at a proxy.                                                                                                                  |
-| `PORT`                   | HTTP only  | no       | `3000`                       | Port the HTTP server listens on.                                                                                                                                      |
-| `BILLINGO_ALLOWED_HOSTS` | HTTP only  | no       | unset (protection disabled)  | Comma-separated list of `Host` header values the server will accept — DNS-rebinding protection. **Set this whenever the server is reachable from outside localhost.** |
+| Variable                   | Transport  | Required | Default                      | Meaning                                                                                                                                                                                                    |
+| -------------------------- | ---------- | -------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BILLINGO_API_KEY`         | stdio only | yes      | —                            | Your Billingo API key. Not read in HTTP mode — see below.                                                                                                                                                  |
+| `BILLINGO_ALLOW_WRITE`     | stdio only | no       | `false`                      | `"true"` or `"1"` enables write tools for this stdio process. Any other value (including a typo) is treated as `false`.                                                                                    |
+| `BILLINGO_TOOL_CATEGORIES` | stdio only | no       | all                          | Comma-separated tool groups to load, and only these: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `document_blocks`, `documents`. An unknown name stops the server from starting. |
+| `BILLINGO_BASE_URL`        | both       | no       | `https://api.billingo.hu/v3` | Override the API base URL, e.g. to point at a proxy.                                                                                                                                                       |
+| `PORT`                     | HTTP only  | no       | `3000`                       | Port the HTTP server listens on.                                                                                                                                                                           |
+| `BILLINGO_ALLOWED_HOSTS`   | HTTP only  | no       | unset (protection disabled)  | Comma-separated list of `Host` header values the server will accept — DNS-rebinding protection. **Set this whenever the server is reachable from outside localhost.**                                      |
 
 HTTP mode takes credentials and scope **per request**, as headers, instead:
 
-| Header                   | Required | Meaning                                                      |
-| ------------------------ | -------- | ------------------------------------------------------------ |
-| `X-Billingo-Api-Key`     | yes      | The Billingo API key to use for this request. Never stored.  |
-| `X-Billingo-Allow-Write` | no       | `"true"` or `"1"` enables write tools for this request only. |
+| Header                       | Required | Meaning                                                                                                                                                                                                           |
+| ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `X-Billingo-Api-Key`         | yes      | The Billingo API key to use for this request. Never stored.                                                                                                                                                       |
+| `X-Billingo-Allow-Write`     | no       | `"true"` or `"1"` enables write tools for this request only.                                                                                                                                                      |
+| `X-Billingo-Tool-Categories` | no       | The same group list as `BILLINGO_TOOL_CATEGORIES`, for this request. Clients that cannot set a header can use `?categories=documents,partners` in the URL; when both are set, the header wins. Unknown name: 400. |
 
 ⬆️ [Back to top](#tartalomjegyzék)
 
@@ -604,11 +646,13 @@ Read this section before exposing the server to anything.
 ## 🧰 Tools
 
 49 tools total: 22 read (always visible), 27 write (visible only with writes enabled).
+If your client puts every tool schema into the prompt, load only the groups you need
+with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 
 **Organization** (3 read)
 
 - `billingo_get_organization` — Get organization details (tax code, subscription, NAV connection status).
-- `billingo_check_tax_number` — Validate a Hungarian tax number.
+- `billingo_check_tax_number` — Validate a Hungarian tax number (full hyphenated form; needs a live NAV connection).
 - `billingo_get_conversion_rate` — Get an official currency conversion rate, optionally for a past date.
 
 **Partners** (2 read, 4 write)
@@ -616,7 +660,7 @@ Read this section before exposing the server to anything.
 - `billingo_list_partners` — List partners.
 - `billingo_get_partner` — Get a single partner.
 - `billingo_create_partner` — Create a partner. _(write)_
-- `billingo_update_partner` — Update a partner (full replace). _(write)_
+- `billingo_update_partner` — Update a partner; only the fields you send change. _(write)_
 - `billingo_guess_partner` — Find a partner by tax number/email, or create one. _(write)_
 - `billingo_delete_partner` — Delete a partner. _(write)_
 
@@ -626,7 +670,7 @@ Read this section before exposing the server to anything.
 - `billingo_get_product` — Get a single product.
 - `billingo_get_product_quantity` — Get a product's stock quantity.
 - `billingo_create_product` — Create a product. _(write)_
-- `billingo_update_product` — Update a product (full replace). _(write)_
+- `billingo_update_product` — Update a product; only the fields you send change. _(write)_
 - `billingo_delete_product` — Delete a product. _(write)_
 
 **Spendings** (2 read, 3 write)
@@ -634,7 +678,7 @@ Read this section before exposing the server to anything.
 - `billingo_list_spendings` — List spendings.
 - `billingo_get_spending` — Get a single spending.
 - `billingo_create_spending` — Create a spending. _(write)_
-- `billingo_update_spending` — Update a spending (full replace). _(write)_
+- `billingo_update_spending` — Update a spending; only the fields you send change. _(write)_
 - `billingo_delete_spending` — Delete a spending. _(write)_
 
 **Bank accounts** (2 read, 3 write)
@@ -642,7 +686,7 @@ Read this section before exposing the server to anything.
 - `billingo_list_bank_accounts` — List bank accounts.
 - `billingo_get_bank_account` — Get a single bank account.
 - `billingo_create_bank_account` — Create a bank account. _(write)_
-- `billingo_update_bank_account` — Update a bank account (full replace). _(write)_
+- `billingo_update_bank_account` — Update a bank account; only the fields you send change. _(write)_
 - `billingo_delete_bank_account` — Delete a bank account. _(write)_
 
 **Document blocks** (1 read, 1 write)
@@ -664,13 +708,13 @@ Read this section before exposing the server to anything.
 **Documents — write** (9)
 
 - `billingo_create_document` — Create a document (invoice, proforma, draft, or advance). _(write)_
-- `billingo_create_receipt` — Create a receipt. _(write)_
+- `billingo_create_receipt` — Create a receipt (needs a receipt-type document block). _(write)_
 - `billingo_finalize_draft` — Finalize a draft into an invoice — issues it and reports it to NAV. _(write)_
 - `billingo_finalize_receipt_draft` — Finalize a draft into a receipt. _(write)_
 - `billingo_create_document_from_proforma` — Create an invoice from a proforma. _(write)_
-- `billingo_copy_document` — Copy a document. _(write)_
+- `billingo_copy_document` — Copy a document; an invoice copy is a draft (issue it with `billingo_finalize_draft`). _(write)_
 - `billingo_create_modification_document` — Create a modification (correction) document. _(write)_
-- `billingo_update_payment` — Update a document's recorded payments. _(write)_
+- `billingo_update_payment` — Replace a document's recorded payments; any payment left out is deleted. _(write)_
 - `billingo_archive_document` — Archive a proforma document. _(write)_
 
 **Documents — export** (1 read)
@@ -683,6 +727,38 @@ Read this section before exposing the server to anything.
 - `billingo_send_document` — Send a document by email. _(write)_
 - `billingo_delete_document` — Delete a document (only drafts/unissued documents; an issued invoice must be cancelled instead). _(write)_
 - `billingo_delete_payment` — Delete a document's recorded payments. _(write)_
+
+### Results and errors
+
+- **Structured results.** 17 read tools publish an `outputSchema` and also return their
+  result as `structuredContent`, so hosts that call tools from code (code mode) get typed
+  data. The text block is unchanged. The schemas are open (new Billingo fields pass) and
+  require nothing but a record's `id`; if a response ever did not fit, the SDK would return the
+  call as an `Output validation error`, which `npm run test:live` checks for on every
+  run. Tools that return a file (`download_document`, `pos_print`, `export_documents`) or
+  whose shape cannot be checked on a sandbox (`check_tax_number`, `get_product_quantity`)
+  publish none, and neither do the write tools.
+- **Errors.** A Billingo API error comes back as `isError: true`: the first text block is
+  the message, the second is JSON, `{"error": {"code", "retryable", "outcome_unknown",
+"status", "retry_after_seconds", "fields", "trace_id", "message"}}`. Codes:
+  `bad_request`, `unauthorized`, `nav_connection_required`, `subscription_required`,
+  `forbidden`, `not_found`, `validation_failed`, `rate_limited`, `pdf_not_ready`,
+  `server_error`, `api_error`, `client_error`, `invalid_arguments`, `export_pending`,
+  `export_failed`. `retryable` is never true for a server error on a tool that is not
+  idempotent: there `outcome_unknown` is set instead, because the invoice may already
+  have been issued, so check by `vendor_id` before trying again. A retried delete may
+  answer `not_found` when the first attempt went through. Input-validation errors
+  from the SDK keep their plain-text form.
+- **Updates.** Billingo's API replaces the whole record on update and clears what is
+  left out. The partner, product, bank account and spending `update_*` tools therefore
+  read the record first and send it back complete with your changes: send only the
+  field that changes. `update_payment` still replaces the whole payment list, so read
+  the existing payments first. All of them carry `destructiveHint: true`. The read and
+  the write are two requests, so a change made in Billingo between them is overwritten.
+  On a HUF spending the `*_huf` amounts follow the totals; in another currency Billingo
+  does not convert, so a new total, currency or rate needs its HUF amounts too. A
+  spending's line items (`items`, from NAV imports) are not part of the write model;
+  whether an update keeps them is not verified.
 
 ⬆️ [Back to top](#tartalomjegyzék)
 
@@ -702,6 +778,9 @@ intersection is 5.9.3. Installing a newer TypeScript fails `npm install` with an
 
 Other useful commands: `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run test:coverage`, `npm run build`.
+
+**Architecture:** the layers, the path of a tool call and how the update tools work, with a
+diagram: [ARCHITECTURE.md](ARCHITECTURE.md#english).
 
 **Live smoke suite:** `npm run test:live` runs a small suite against the real Billingo
 sandbox (creating and cleaning up real, if harmless, sandbox data). It needs

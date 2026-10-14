@@ -1,5 +1,6 @@
 // src/tools/document-blocks.ts
 import { z } from 'zod';
+import { documentBlockSchema, paginatedSchema } from '../billingo/schemas.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
 import { defineTool, jsonResult } from './registry.js';
@@ -12,6 +13,7 @@ const listDocumentBlocks = defineTool({
   description:
     'Lists document blocks (invoice number ranges). Every document belongs to a block; you need a block id to create an invoice.',
   inputSchema: { ...pageParamsShape },
+  outputSchema: paginatedSchema(documentBlockSchema),
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ page, per_page }, { client }) => {
     const result = await client.get<Paginated<unknown>>('/document-blocks', {
