@@ -130,6 +130,12 @@ describe('billingo_create_product', () => {
 });
 
 describe('billingo_update_product', () => {
+  it('is marked destructive and says omitted fields are cleared — PUT does not keep them', () => {
+    const tool = byName('billingo_update_product');
+    expect(tool.annotations.destructiveHint).toBe(true);
+    expect(tool.description).toContain('the API clears them');
+  });
+
   const fullUpdate = {
     id: 3,
     name: 'Widget v2',

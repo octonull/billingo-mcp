@@ -66,14 +66,16 @@ const updateBankAccount = defineTool({
   scope: 'write',
   title: 'Update bank account',
   description:
-    'Replaces an existing bank account. PUT is a full update, not a patch: the API re-validates the entire required field set (name, account_number, currency) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { name }) will fail with a 422. To update safely: call billingo_get_bank_account first, merge your changes into the full record, and send that complete result here.',
+    'Replaces an existing bank account. PUT is a full update, not a patch: the API re-validates the entire required field set (name, account_number, currency) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { name }) will fail with a 422. To update safely: call billingo_get_bank_account first, merge your changes into the full record, and send that complete result here. Optional fields you leave out are not kept: the API clears them.',
   inputSchema: {
     id: z.number().int().describe('Bank account id.'),
     ...bankAccountFields,
   },
+  // destructiveHint: true because omitted optional fields are cleared, not kept.
+  // Verified live 2026-10-14: a PUT without account_number_iban and swift returned 200 and left both empty.
   annotations: {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },

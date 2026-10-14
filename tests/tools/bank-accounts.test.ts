@@ -108,6 +108,12 @@ describe('billingo_get_bank_account', () => {
 });
 
 describe('billingo_update_bank_account', () => {
+  it('is marked destructive and says omitted fields are cleared — PUT does not keep them', () => {
+    const tool = byName('billingo_update_bank_account');
+    expect(tool.annotations.destructiveHint).toBe(true);
+    expect(tool.description).toContain('the API clears them');
+  });
+
   const fullUpdate = {
     id: 2,
     name: 'New name',

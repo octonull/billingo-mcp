@@ -139,6 +139,12 @@ describe('billingo_create_partner', () => {
 });
 
 describe('billingo_update_partner', () => {
+  it('is marked destructive and says omitted fields are cleared — PUT does not keep them', () => {
+    const tool = byName('billingo_update_partner');
+    expect(tool.annotations.destructiveHint).toBe(true);
+    expect(tool.description).toContain('the API clears them');
+  });
+
   const fullUpdate = {
     id: 42,
     name: 'New name',
