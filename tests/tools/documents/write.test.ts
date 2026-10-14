@@ -422,6 +422,13 @@ describe('billingo_update_payment', () => {
     );
     expect(body).toEqual([{ payment_method: 'wire_transfer', date: '2026-01-20', price: 12700 }]);
   });
+
+  it('is marked destructive and says omitted payments are deleted — the PUT is a full replace', () => {
+    const tool = byName('billingo_update_payment');
+    expect(tool.annotations.destructiveHint).toBe(true);
+    expect(tool.description).toContain('billingo_get_document_payments');
+    expect(tool.description.toLowerCase()).toContain('deleted');
+  });
 });
 
 describe('billingo_archive_document', () => {

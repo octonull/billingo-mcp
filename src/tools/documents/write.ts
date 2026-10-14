@@ -294,7 +294,7 @@ const updatePayment = defineTool({
   scope: 'write',
   title: 'Update document payments',
   description:
-    'Replaces the payment history of a document. This records money received; it does not issue anything to NAV.',
+    'Replaces the WHOLE payment history of a document with the list you send: any existing payment left out of `payments` is deleted. To add a payment, first read the current history with billingo_get_document_payments, append the new entry, and send the complete list. This records money received; it does not issue anything to NAV.',
   inputSchema: {
     id: z.number().int().describe('Document id.'),
     payments: z.array(
@@ -308,9 +308,12 @@ const updatePayment = defineTool({
       }),
     ),
   },
+  // destructiveHint: true because the PUT is a full replace. Verified live 2026-10-14:
+  // PUT two payments, then PUT one of them -> GET /payments returns one, the other is
+  // gone and payment_status drops to partially_paid.
   annotations: {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },
