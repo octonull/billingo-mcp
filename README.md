@@ -343,6 +343,31 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 - `billingo_delete_document` — Dokumentum törlése (csak piszkozat/ki nem állított dokumentumoknál; egy kiállított számlát stornózni kell helyette). _(író)_
 - `billingo_delete_payment` — Egy dokumentum rögzített kifizetéseinek törlése. _(író)_
 
+### Eredmények és hibák
+
+- **Strukturált eredmény.** 17 olvasó eszköz `outputSchema`-t közöl, és az eredményt
+  `structuredContent`-ként is visszaadja, így a kódból hívó kliensek (code mode) típusos
+  adatot kapnak. A szöveges blokk nem változik. A sémák nyitottak (a Billingo új mezői
+  átmennek), és egy rekord `id`-ján kívül semmit sem várnak el kötelezően; ha egy válasz mégsem illene, az SDK a
+  hívást `Output validation error` hibaként adná vissza, amit az `npm run test:live` minden
+  futáskor ellenőriz. Fájlt adó (`download_document`, `pos_print`, `export_documents`) és
+  sandboxban nem ellenőrizhető (`check_tax_number`, `get_product_quantity`) eszköz nem
+  közöl sémát, ahogy az író eszközök sem.
+- **Hibák.** Egy Billingo API-hiba `isError: true` eredményként jön vissza: az első
+  szöveges blokk az üzenet, a második JSON, `{"error": {"code", "retryable",
+"outcome_unknown", "status", "retry_after_seconds", "fields", "trace_id", "message"}}`.
+  Kódok: `bad_request`, `unauthorized`, `nav_connection_required`,
+  `subscription_required`, `forbidden`, `not_found`, `validation_failed`, `rate_limited`,
+  `pdf_not_ready`, `server_error`, `api_error`, `client_error`, `invalid_arguments`,
+  `export_pending`, `export_failed`. Nem idempotens eszköz szerverhibájánál a `retryable`
+  sosem igaz: ilyenkor `outcome_unknown` jelzi, hogy a számla akár ki is állt, ezért
+  újrapróbálás előtt `vendor_id` alapján ellenőrizd. Egy újrapróbált törlés
+  `not_found` választ adhat, ha az első kísérlet mégis lefutott. Az SDK bemeneti validációs hibái
+  továbbra is csak szövegesek.
+- **Teljes felülírás.** Az `update_*` és az `update_payment` eszközök a teljes rekordot
+  küldik: amit kihagysz, azt a Billingo törli. Ezért `destructiveHint: true` jelöléssel
+  szerepelnek; előbb olvasd ki a rekordot, és a teljes, módosított változatot küldd.
+
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
 ## 🔨 Fejlesztés
@@ -683,6 +708,31 @@ Read this section before exposing the server to anything.
 - `billingo_send_document` — Send a document by email. _(write)_
 - `billingo_delete_document` — Delete a document (only drafts/unissued documents; an issued invoice must be cancelled instead). _(write)_
 - `billingo_delete_payment` — Delete a document's recorded payments. _(write)_
+
+### Results and errors
+
+- **Structured results.** 17 read tools publish an `outputSchema` and also return their
+  result as `structuredContent`, so hosts that call tools from code (code mode) get typed
+  data. The text block is unchanged. The schemas are open (new Billingo fields pass) and
+  require nothing but a record's `id`; if a response ever did not fit, the SDK would return the
+  call as an `Output validation error`, which `npm run test:live` checks for on every
+  run. Tools that return a file (`download_document`, `pos_print`, `export_documents`) or
+  whose shape cannot be checked on a sandbox (`check_tax_number`, `get_product_quantity`)
+  publish none, and neither do the write tools.
+- **Errors.** A Billingo API error comes back as `isError: true`: the first text block is
+  the message, the second is JSON, `{"error": {"code", "retryable", "outcome_unknown",
+"status", "retry_after_seconds", "fields", "trace_id", "message"}}`. Codes:
+  `bad_request`, `unauthorized`, `nav_connection_required`, `subscription_required`,
+  `forbidden`, `not_found`, `validation_failed`, `rate_limited`, `pdf_not_ready`,
+  `server_error`, `api_error`, `client_error`, `invalid_arguments`, `export_pending`,
+  `export_failed`. `retryable` is never true for a server error on a tool that is not
+  idempotent: there `outcome_unknown` is set instead, because the invoice may already
+  have been issued, so check by `vendor_id` before trying again. A retried delete may
+  answer `not_found` when the first attempt went through. Input-validation errors
+  from the SDK keep their plain-text form.
+- **Full replace.** The `update_*` tools and `update_payment` send the whole record and
+  Billingo clears whatever is left out, so they carry `destructiveHint: true`. Read the
+  record first and send the complete, edited version.
 
 ⬆️ [Back to top](#tartalomjegyzék)
 

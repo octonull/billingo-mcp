@@ -59,6 +59,10 @@ to know a tool call is happening.
 2. Pick `scope: 'read'` or `scope: 'write'` honestly — see constraint 3 below ("Write
    tools are filtered out of `tools/list`"). This is a safety decision, not a style one.
 3. Add it to that module's exported array (e.g. `partnerTools`).
+   If every success of a read tool is a JSON object, give it an `outputSchema` from
+   `src/billingo/schemas.ts` and add it to `CASES` in `tests/server/output-schemas.test.ts`.
+   Build schemas with `z.looseObject` only: a plain `z.object` is published with
+   `additionalProperties: false`, and SDK clients then reject any field Billingo adds.
 4. It is automatically picked up by `src/tools/index.ts` into `allTools` — no other wiring
    needed.
 5. Update the surface assertions in `tests/server/server.test.ts`: the total-count test
