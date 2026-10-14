@@ -21,12 +21,14 @@ const checkTaxNumber = defineTool({
   scope: 'read',
   title: 'Check tax number',
   description:
-    'Looks up a Hungarian tax number in the public registry and returns the company data behind it. Use this to validate a tax number before creating a partner.',
+    'Looks up a Hungarian tax number at NAV and returns the company data behind it. Use this to validate a tax number before creating a partner. Works only when the Billingo account has a live NAV Online Számla connection (not available on sandbox accounts).',
   inputSchema: {
+    // Verified live 2026-10-14: "12345678" and "12345678242" both 422 with "The tax
+    // number format is invalid."; only the hyphenated 11-digit form passes validation.
     tax_number: z
       .string()
-      .min(1)
-      .describe('Hungarian tax number, e.g. "12345678" or "12345678-2-42".'),
+      .regex(/^\d{8}-\d-\d{2}$/, 'must be the full tax number, e.g. "12345678-2-42"')
+      .describe('Full Hungarian tax number with hyphens, e.g. "12345678-2-42".'),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ tax_number }, { client }) =>
