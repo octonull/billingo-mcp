@@ -80,4 +80,17 @@ describe('errorResult', () => {
     expect(result.isError).toBe(true);
     expect(result.content[0]).toEqual({ type: 'text', text: 'Nope.' });
   });
+
+  it('adds the error details as a JSON block a script can branch on', () => {
+    const result = errorResult('Not there.', { code: 'not_found', retryable: false, status: 404 });
+    const second = result.content[1];
+    expect(second?.type).toBe('text');
+    expect(JSON.parse((second as { text: string }).text)).toEqual({
+      error: { code: 'not_found', retryable: false, status: 404, message: 'Not there.' },
+    });
+  });
+
+  it('puts nothing in structuredContent — the SDK client would validate it against the outputSchema', () => {
+    expect(errorResult('x').structuredContent).toBeUndefined();
+  });
 });

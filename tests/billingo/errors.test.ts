@@ -2,8 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   BillingoApiError,
+  BillingoError,
   BillingoPdfNotReadyError,
   BillingoRateLimitError,
+  describeError,
   parseErrorBody,
 } from '../../src/billingo/errors.js';
 
@@ -159,5 +161,82 @@ describe('parseErrorBody', () => {
     expect(err.message).toBe('Billingo API returned HTTP 500');
     expect(err.validationErrors).toEqual([]);
     expect(err.traceId).toBeUndefined();
+  });
+});
+
+describe('describeError', () => {
+  const codeOf = (status: number, body: unknown) =>
+    describeError(parseErrorBody(status, body)).code;
+
+  it('maps each HTTP status to a stable code', () => {
+    expect(codeOf(400, { error: { message: 'Duplicate vendor id.' } })).toBe('bad_request');
+    expect(codeOf(401, { error: { message: 'Unauthenticated.' } })).toBe('unauthorized');
+    expect(codeOf(402, { error: { message: 'No subscription.' } })).toBe('subscription_required');
+    expect(codeOf(403, { error: { message: 'No permission.' } })).toBe('forbidden');
+    expect(codeOf(404, { error: { message: 'Document is not found.' } })).toBe('not_found');
+    expect(codeOf(422, { message: 'Validation Failed', errors: [] })).toBe('validation_failed');
+    expect(codeOf(429, { error: { message: 'Too many.' } })).toBe('rate_limited');
+    expect(codeOf(503, { error: { message: 'Down.' } })).toBe('server_error');
+    expect(codeOf(418, {})).toBe('api_error');
+  });
+
+  it('tells a missing NAV connection apart from a bad API key — both are 401 live', () => {
+    const body = {
+      error: {
+        message:
+          'To use this feature, please ensure you have a live connection to NAV (not available in sandbox mode)',
+      },
+    };
+    expect(codeOf(401, body)).toBe('nav_connection_required');
+  });
+
+  it('marks rate limits and an unready PDF retryable, and no 4xx', () => {
+    expect(describeError(new BillingoRateLimitError(429, 'x', undefined, [], 3500))).toMatchObject({
+      code: 'rate_limited',
+      retryable: true,
+      retry_after_seconds: 4,
+    });
+    expect(describeError(new BillingoPdfNotReadyError(202, 'x', undefined, []))).toMatchObject({
+      code: 'pdf_not_ready',
+      retryable: true,
+    });
+    for (const status of [400, 401, 402, 403, 404, 422]) {
+      expect(describeError(parseErrorBody(status, {})).retryable, String(status)).toBe(false);
+    }
+  });
+
+  it('carries the 422 field list and the trace id', () => {
+    const fields = [{ field: 'invoice_number', message: 'The invoice number field is required.' }];
+    expect(
+      describeError(parseErrorBody(422, { message: 'Validation Failed', errors: fields })),
+    ).toMatchObject({
+      status: 422,
+      fields,
+    });
+    expect(
+      describeError(parseErrorBody(500, { error: { message: 'x', trace_id: 't-1' } })).trace_id,
+    ).toBe('t-1');
+  });
+
+  it('reports a non-HTTP failure as client_error', () => {
+    expect(describeError(new BillingoError('socket hang up'))).toEqual({
+      code: 'client_error',
+      retryable: false,
+    });
+  });
+
+  it('marks a 5xx retryable only for an idempotent call, and flags an unknown outcome otherwise', () => {
+    // A 5xx on POST /documents may still have issued the invoice; repeating it could issue
+    // a second one. The client refuses to retry POSTs for the same reason.
+    expect(describeError(parseErrorBody(500, {}), { idempotent: true })).toMatchObject({
+      code: 'server_error',
+      retryable: true,
+    });
+    const write = describeError(parseErrorBody(500, {}), { idempotent: false });
+    expect(write).toMatchObject({ code: 'server_error', retryable: false, outcome_unknown: true });
+    expect(describeError(parseErrorBody(500, {}))).toMatchObject({ retryable: false });
+    expect(
+      describeError(parseErrorBody(422, {}), { idempotent: false }).outcome_unknown,
+    ).toBeUndefined();
   });
 });

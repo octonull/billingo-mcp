@@ -1,6 +1,10 @@
 // src/tools/documents/read.ts
 import { z } from 'zod';
-import { BillingoPdfNotReadyError, PDF_NOT_READY_STATUS } from '../../billingo/errors.js';
+import {
+  BillingoPdfNotReadyError,
+  describeError,
+  PDF_NOT_READY_STATUS,
+} from '../../billingo/errors.js';
 import { paymentMethodSchema } from '../../billingo/enums.js';
 import { isoDate } from '../../billingo/dates.js';
 import { pageParamsShape, summarizePage } from '../../billingo/pagination.js';
@@ -94,7 +98,10 @@ const getDocument = defineTool({
     if (vendor_id !== undefined) {
       return jsonResult(await client.get(`/documents/vendor/${encodeURIComponent(vendor_id)}`));
     }
-    return errorResult('Give either `id` or `vendor_id`.');
+    return errorResult('Give either `id` or `vendor_id`.', {
+      code: 'invalid_arguments',
+      retryable: false,
+    });
   },
 });
 
@@ -137,6 +144,7 @@ const downloadDocument = defineTool({
       if (error instanceof BillingoPdfNotReadyError) {
         return errorResult(
           `The PDF for document ${String(id)} has not generated yet. This is normal right after creating a document — try again in a few seconds.`,
+          describeError(error),
         );
       }
       throw error;

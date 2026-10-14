@@ -1,7 +1,7 @@
 // src/server.ts
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { BillingoError } from './billingo/errors.js';
+import { BillingoError, describeError } from './billingo/errors.js';
 import type { BillingoClient } from './billingo/client.js';
 import { errorResult, filterByScope } from './tools/registry.js';
 import type { AnyToolDefinition, ToolContext } from './tools/registry.js';
@@ -25,7 +25,10 @@ async function runTool(
   try {
     return await tool.handler(args, ctx);
   } catch (error) {
-    if (error instanceof BillingoError) return errorResult(error.message);
+    if (error instanceof BillingoError) {
+      const idempotent = tool.annotations.idempotentHint === true;
+      return errorResult(error.message, describeError(error, { idempotent }));
+    }
     throw error;
   }
 }
