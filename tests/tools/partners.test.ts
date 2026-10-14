@@ -106,6 +106,25 @@ describe('billingo_get_partner', () => {
 });
 
 describe('billingo_create_partner', () => {
+  it('takes the API tax_type values — the lowercase ones were silently stored as unset', () => {
+    const schema = z.object(byName('billingo_create_partner').inputSchema);
+    const base = {
+      name: 'Example GmbH',
+      address: {
+        country_code: 'DE',
+        post_code: '10115',
+        city: 'Berlin',
+        address: 'Beispielstraße 1',
+      },
+    };
+    for (const taxType of ['FOREIGN', 'HAS_TAX_NUMBER', 'NO_TAX_NUMBER']) {
+      expect(schema.safeParse({ ...base, tax_type: taxType }).success, taxType).toBe(true);
+    }
+    for (const taxType of ['none', 'has_tax_number', 'no_tax_number', 'foreign']) {
+      expect(schema.safeParse({ ...base, tax_type: taxType }).success, taxType).toBe(false);
+    }
+  });
+
   it('posts the partner and returns the created record', async () => {
     let body: unknown = null;
     server.use(

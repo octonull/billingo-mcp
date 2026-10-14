@@ -359,6 +359,62 @@ live('live: API behaviours the tools depend on', () => {
     expect(fields).toContain('block_id');
   });
 
+  it('billingo_create_partner: only the uppercase tax_type values are stored, and FOREIGN enables an EU invoice', async () => {
+    const de = {
+      country_code: 'DE',
+      post_code: '10115',
+      city: 'Berlin',
+      address: 'Beispielstraße 1',
+    };
+    const lower = await client.post<{ id: number; tax_type: string }>('/partners', {
+      body: {
+        name: 'live tax type lower',
+        address: de,
+        taxcode: 'DE123456789',
+        tax_type: 'has_tax_number',
+      },
+    });
+    partnerIds.push(lower.id);
+    expect(lower.tax_type).toBe('');
+    const foreign = await client.post<{ id: number; tax_type: string }>('/partners', {
+      body: {
+        name: 'live tax type foreign',
+        address: de,
+        taxcode: 'DE123456789',
+        tax_type: 'FOREIGN',
+      },
+    });
+    partnerIds.push(foreign.id);
+    expect(foreign.tax_type).toBe('FOREIGN');
+    const rate = await client.get<{ conversation_rate: number }>('/currencies', {
+      query: { from: 'EUR', to: 'HUF' },
+    });
+    const euBody = (partner: number) => ({
+      partner_id: partner,
+      block_id: blockId,
+      type: 'invoice',
+      fulfillment_date: today,
+      due_date: today,
+      payment_method: 'wire_transfer',
+      language: 'en',
+      currency: 'EUR',
+      conversion_rate: rate.conversation_rate,
+      items: [
+        {
+          name: 'live EU check',
+          unit_price: 100,
+          unit_price_type: 'net',
+          quantity: 1,
+          unit: 'db',
+          vat: 'EU',
+        },
+      ],
+    });
+    expect(await statusOf(client.post('/documents', { body: euBody(lower.id) }))).toBe(400);
+    const issued = await client.post<{ id: number }>('/documents', { body: euBody(foreign.id) });
+    await client.post(`/documents/${String(issued.id)}/cancel`).catch(() => undefined);
+  });
+
   it('every read tool with an outputSchema returns live data that matches it', async () => {
     const doc = await invoice();
     const server = createServer({ client, allowWrite: false });

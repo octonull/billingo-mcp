@@ -38,7 +38,17 @@ const partnerFields = {
   emails: z.array(z.email()).optional().describe('Email addresses invoices are sent to.'),
   taxcode: z.string().optional().describe('Tax number.'),
   group_member_tax_number: z.string().optional(),
-  tax_type: z.enum(['none', 'has_tax_number', 'no_tax_number']).optional(),
+  // Per spec components.schemas.PartnerTaxType: '', FOREIGN, HAS_TAX_NUMBER, NO_TAX_NUMBER.
+  // Verified live 2026-10-14: the lowercase values the tool used to accept ('none',
+  // 'has_tax_number', 'no_tax_number') return 201 but are stored as '' (not set), and
+  // without FOREIGN an EU (VAT "EU") invoice is refused: "the customer type must be set
+  // to 'Foreign'". With FOREIGN the same EU invoice is issued.
+  tax_type: z
+    .enum(['', 'FOREIGN', 'HAS_TAX_NUMBER', 'NO_TAX_NUMBER'])
+    .optional()
+    .describe(
+      'Customer type: HAS_TAX_NUMBER for a Hungarian business with a tax number, NO_TAX_NUMBER for a private person, FOREIGN for a buyer outside Hungary, "" for not set (what Billingo returns for a partner without one). EU (VAT "EU") invoices need FOREIGN and the EU VAT number in taxcode.',
+    ),
   phone: z.string().optional(),
   account_number: z.string().optional(),
   general_ledger_number: z.string().optional(),
