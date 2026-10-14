@@ -4,6 +4,7 @@ import { paginatedSchema, partnerSchema } from '../billingo/schemas.js';
 import { currencySchema, documentLanguageSchema, paymentMethodSchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
+import { patchDescription, patchRecord, patchShape } from './merge.js';
 import { defineTool, jsonResult } from './registry.js';
 import type { AnyToolDefinition } from './registry.js';
 
@@ -19,22 +20,20 @@ import type { AnyToolDefinition } from './registry.js';
  */
 const addressSchema = z.object({
   country_code: z.string().length(2).describe('ISO 3166-1 alpha-2 country code, e.g. "HU".'),
-  post_code: z.string().min(1).describe('Postal code. Required.'),
-  city: z.string().min(1).describe('City. Required.'),
-  address: z.string().min(1).describe('Street address. Required.'),
+  post_code: z.string().min(1).describe('Postal code.'),
+  city: z.string().min(1).describe('City.'),
+  address: z.string().min(1).describe('Street address.'),
 });
 
 /**
- * Fields shared by create and update. PUT /partners/{id} is a full replace, not a patch —
- * verified live 2026-07-17, where {"name":"renamed"} 422s with address.post_code,
- * address.city and address.address all "required". So create and update share the exact
- * same required set (name, address); only the genuinely optional attributes stay optional.
+ * Fields shared by create and update. Create needs name and a complete address (verified
+ * live 2026-07-17: {"name":"renamed"} 422s with address.post_code, address.city and
+ * address.address all "required"). Update takes any subset of them: the tool reads the
+ * partner and fills in the rest, because PUT /partners/{id} is a full replace.
  */
 const partnerFields = {
   name: z.string().min(1).describe('Partner (company or person) name.'),
-  address: addressSchema.describe(
-    'Full address. Required — PUT replaces the whole partner, so this must be sent on every update too, not just on create.',
-  ),
+  address: addressSchema.describe('Full address. On update, give only the parts that change.'),
   emails: z.array(z.email()).optional().describe('Email addresses invoices are sent to.'),
   taxcode: z.string().optional().describe('Tax number.'),
   group_member_tax_number: z.string().optional(),
@@ -51,9 +50,10 @@ const partnerFields = {
     ),
   phone: z.string().optional(),
   account_number: z.string().optional(),
-  // Verified live 2026-10-14: a partner PUT clears iban, swift and internal_comment and
-  // resets giro_settings to its defaults when they are left out, so they must be fields
-  // here for a read-then-write update to keep them.
+  // Verified live 2026-10-14: a partner PUT that leaves out iban, swift and
+  // internal_comment clears them and resets giro_settings to its defaults. The update
+  // tool keeps them by reading the partner first (src/tools/merge.ts); these fields let a
+  // caller set and change them.
   iban: z.string().optional(),
   swift: z.string().optional(),
   internal_comment: z.string().optional().describe('Internal note, not printed on invoices.'),
@@ -128,26 +128,55 @@ const createPartner = defineTool({
   handler: async (args, { client }) => jsonResult(await client.post('/partners', { body: args })),
 });
 
+/** Writable fields of components.schemas.Partner, the body PUT /partners/{id} takes. */
+const PARTNER_WRITABLE = [
+  'name',
+  'address',
+  'emails',
+  'taxcode',
+  'iban',
+  'swift',
+  'account_number',
+  'phone',
+  'general_ledger_number',
+  'tax_type',
+  'custom_billing_settings',
+  'group_member_tax_number',
+  'giro_settings',
+  'partner_shipping',
+  'internal_comment',
+  'partner_show_type',
+] as const;
+
 const updatePartner = defineTool({
   name: 'billingo_update_partner',
   scope: 'write',
   title: 'Update partner',
-  description:
-    'Replaces an existing partner. PUT is a full update, not a patch: the API re-validates the entire required field set (name and a complete address) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { name }) will fail with a 422. To update safely: call billingo_get_partner first, merge your changes into the full record, and send that complete result here. Optional fields you leave out are not kept: the API clears them.',
+  description: patchDescription('partner'),
   inputSchema: {
     id: z.number().int().describe('Partner id.'),
-    ...partnerFields,
+    ...patchShape({
+      ...partnerFields,
+      address: addressSchema
+        .partial()
+        .describe('Only the parts that change; the rest of the stored address is kept.'),
+    }),
   },
-  // destructiveHint: true because omitted optional fields are cleared, not kept.
-  // Verified live 2026-10-14: a PUT without emails, phone and iban returned 200 and left all three empty.
+  // destructiveHint: true because the given fields overwrite the stored values.
   annotations: {
     readOnlyHint: false,
     destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },
-  handler: async ({ id, ...body }, { client }) =>
-    jsonResult(await client.put(`/partners/${String(id)}`, { body })),
+  handler: async ({ id, ...patch }, { client }) =>
+    jsonResult(
+      await patchRecord(
+        client,
+        { path: `/partners/${String(id)}`, writable: PARTNER_WRITABLE },
+        patch,
+      ),
+    ),
 });
 
 const guessPartner = defineTool({

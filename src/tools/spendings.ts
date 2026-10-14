@@ -1,10 +1,12 @@
 // src/tools/spendings.ts
 import { z } from 'zod';
+import { BillingoArgumentError } from '../billingo/errors.js';
 import { paginatedSchema, spendingSchema } from '../billingo/schemas.js';
 import { isoDate } from '../billingo/dates.js';
 import { categorySchema, currencySchema, paymentMethodSchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
+import { patchDescription, patchRecord, patchShape } from './merge.js';
 import { defineTool, jsonResult } from './registry.js';
 import type { AnyToolDefinition } from './registry.js';
 
@@ -25,24 +27,17 @@ const spendingFields = {
   total_gross: z.number(),
   total_gross_huf: z
     .number()
-    .describe(
-      'HUF equivalent of total_gross. Required even when currency is HUF, in which case it should equal total_gross.',
-    ),
+    .describe('HUF equivalent of total_gross; equal to total_gross when the currency is HUF.'),
   total_vat_amount: z.number(),
   total_vat_amount_huf: z.number().describe('HUF equivalent of total_vat_amount.'),
   fulfillment_date: isoDate,
   payment_method: paymentMethodSchema,
-  conversion_rate: z
-    .number()
-    .describe('Conversion rate to HUF. Required by the API even for HUF, in which case send 1.'),
+  conversion_rate: z.number().describe('Conversion rate to HUF; 1 when the currency is HUF.'),
   paid_at: isoDate.optional().describe('Date the spending was paid.'),
   comment: z.string().optional(),
-  invoice_number: z
-    .string()
-    .min(1)
-    .describe('Number of the supplier invoice. Required by the API.'),
-  invoice_date: isoDate.describe('Date of the supplier invoice. Required by the API.'),
-  due_date: isoDate.describe('Payment due date. Required by the API.'),
+  invoice_number: z.string().min(1).describe('Number of the supplier invoice.'),
+  invoice_date: isoDate.describe('Date of the supplier invoice.'),
+  due_date: isoDate.describe('Payment due date.'),
   partner_id: z
     .number()
     .int()
@@ -88,7 +83,7 @@ const createSpending = defineTool({
   scope: 'write',
   title: 'Create spending',
   description:
-    'Records a new spending (cost). This is bookkeeping only — nothing is issued or reported to NAV.',
+    'Records a new spending (cost). This is bookkeeping only — nothing is issued or reported to NAV. Beyond what the spec marks required, the API also requires conversion_rate (1 for HUF), invoice_number, invoice_date and due_date.',
   inputSchema: spendingFields,
   annotations: {
     readOnlyHint: false,
@@ -99,32 +94,111 @@ const createSpending = defineTool({
   handler: async (args, { client }) => jsonResult(await client.post('/spendings', { body: args })),
 });
 
+/** Fields of components.schemas.SpendingSave, the body PUT /spendings/{id} takes. */
+const SPENDING_WRITABLE = [
+  'currency',
+  'conversion_rate',
+  'total_gross',
+  'total_gross_huf',
+  'total_vat_amount',
+  'total_vat_amount_huf',
+  'fulfillment_date',
+  'paid_at',
+  'category',
+  'comment',
+  'invoice_number',
+  'invoice_date',
+  'due_date',
+  'payment_method',
+  'partner_id',
+] as const;
+
 /**
- * PUT /spendings/{id} takes the same components.schemas.SpendingSave as POST /spendings
- * (spec/billingo-3.0.15.json) — not a separate partial-update schema. So, like the other
- * three update tools, this is a full replace: update must require the same fields create
- * does. Probed live 2026-10-14: the PUT requires invoice_number too.
+ * The read model (components.schemas.Spending) names two amounts differently and nests
+ * the partner. Verified live 2026-10-14: a spending read back, mapped this way and sent
+ * unchanged stays identical.
  */
+function spendingToWritable(record: Record<string, unknown>): Record<string, unknown> {
+  const partner = record['partner'] as { id?: unknown } | null | undefined;
+  return {
+    ...record,
+    total_gross_huf: record['total_gross_local'],
+    total_vat_amount_huf: record['total_vat_amount_local'],
+    partner_id: partner?.id,
+  };
+}
+
+const TOTALS = [
+  ['total_gross', 'total_gross_huf'],
+  ['total_vat_amount', 'total_vat_amount_huf'],
+] as const;
+
+/**
+ * Billingo stores each total and its HUF equivalent exactly as sent and does not convert
+ * (verified live 2026-10-14: a HUF spending updated to total_gross 25400 kept
+ * total_gross_huf 12700). So a changed amount must not travel with the stale HUF value
+ * read a moment earlier. In HUF the HUF fields mirror the totals and the rate is 1,
+ * unless the caller gives them. In another currency the tool cannot know the rate the
+ * caller meant, so a changed total, currency or rate without its HUF values is refused.
+ */
+function consistentTotals(
+  body: Record<string, unknown>,
+  patch: Record<string, unknown>,
+  current: Record<string, unknown>,
+): Record<string, unknown> {
+  const given = (key: string) => patch[key] !== undefined && patch[key] !== null;
+  const changed = (key: string) => given(key) && patch[key] !== current[key];
+  const out = { ...body };
+  if (out['currency'] === 'HUF') {
+    if (!given('conversion_rate')) out['conversion_rate'] = 1;
+    for (const [total, huf] of TOTALS) if (!given(huf)) out[huf] = out[total];
+    return out;
+  }
+  const basisChanged = changed('currency') || changed('conversion_rate');
+  if (changed('currency') && !given('conversion_rate')) {
+    throw new BillingoArgumentError(
+      'A new currency needs its conversion_rate (and total_gross_huf, total_vat_amount_huf): Billingo does not convert.',
+    );
+  }
+  for (const [total, huf] of TOTALS) {
+    if ((basisChanged || changed(total)) && !given(huf)) {
+      throw new BillingoArgumentError(
+        `Give ${huf} together with the new ${basisChanged ? 'currency or conversion_rate' : total}: Billingo stores the HUF amount as sent and does not convert.`,
+      );
+    }
+  }
+  return out;
+}
+
 const updateSpending = defineTool({
   name: 'billingo_update_spending',
   scope: 'write',
   title: 'Update spending',
-  description:
-    'Replaces an existing spending. PUT uses the same schema as create, so it is a full update, not a patch: the API re-validates the entire required field set (currency, total_gross, total_gross_huf, total_vat_amount, total_vat_amount_huf, fulfillment_date, category, payment_method, conversion_rate, invoice_number, invoice_date, due_date) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { total_gross }) will fail with a 422. To update safely: call billingo_get_spending first, merge your changes into the full record, and send that complete result here. Optional fields you leave out are not kept: the API clears them.',
+  description: `${patchDescription('spending')} In HUF, total_gross_huf and total_vat_amount_huf follow the totals by themselves. In another currency Billingo does not convert, so a new total, currency or conversion_rate must come with its HUF amounts.`,
   inputSchema: {
     id: z.number().int().describe('Spending id.'),
-    ...spendingFields,
+    ...patchShape(spendingFields),
   },
-  // destructiveHint: true because omitted optional fields are cleared, not kept.
-  // Verified live 2026-10-14: a PUT without comment returned 200 and left it empty.
+  // destructiveHint: true because the given fields overwrite the stored values.
   annotations: {
     readOnlyHint: false,
     destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },
-  handler: async ({ id, ...body }, { client }) =>
-    jsonResult(await client.put(`/spendings/${String(id)}`, { body })),
+  handler: async ({ id, ...patch }, { client }) =>
+    jsonResult(
+      await patchRecord(
+        client,
+        {
+          path: `/spendings/${String(id)}`,
+          writable: SPENDING_WRITABLE,
+          toWritable: spendingToWritable,
+          finalize: consistentTotals,
+        },
+        patch,
+      ),
+    ),
 });
 
 const deleteSpending = defineTool({

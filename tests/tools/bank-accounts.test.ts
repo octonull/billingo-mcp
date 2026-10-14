@@ -107,45 +107,6 @@ describe('billingo_get_bank_account', () => {
   });
 });
 
-describe('billingo_update_bank_account', () => {
-  it('is marked destructive and says omitted fields are cleared — PUT does not keep them', () => {
-    const tool = byName('billingo_update_bank_account');
-    expect(tool.annotations.destructiveHint).toBe(true);
-    expect(tool.description).toContain('the API clears them');
-  });
-
-  const fullUpdate = {
-    id: 2,
-    name: 'New name',
-    account_number: '11773016-11111018',
-    currency: 'HUF',
-  } as const;
-
-  it('puts the full record to /bank-accounts/{id} without the id in the body', async () => {
-    let path = '';
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.put('https://api.billingo.hu/v3/bank-accounts/:id', async ({ request }) => {
-        path = new URL(request.url).pathname;
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 2, name: 'New name' });
-      }),
-    );
-    await byName('billingo_update_bank_account').handler(fullUpdate, ctx);
-    expect(path).toBe('/v3/bank-accounts/2');
-    expect(body['id']).toBeUndefined();
-    expect(body['name']).toBe('New name');
-    expect(body['account_number']).toBe('11773016-11111018');
-  });
-
-  it('rejects a body missing account_number or currency — PUT is a full replace, not a patch', () => {
-    const schema = z.object(byName('billingo_update_bank_account').inputSchema);
-    expect(() => schema.parse({ id: 2 })).toThrow();
-    expect(() => schema.parse({ id: 2, name: 'New name' })).toThrow();
-    expect(schema.parse(fullUpdate)).toMatchObject({ name: 'New name' });
-  });
-});
-
 describe('billingo_delete_bank_account', () => {
   it('is registered, write-scoped and marked destructive', () => {
     const tool = byName('billingo_delete_bank_account');

@@ -150,37 +150,6 @@ describe('billingo_create_spending', () => {
   });
 });
 
-describe('billingo_update_spending', () => {
-  const fullUpdate = { id: 11, ...validSpending, total_gross: 20000 };
-
-  it('puts the full record to /spendings/{id} without the id in the body', async () => {
-    let path = '';
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.put('https://api.billingo.hu/v3/spendings/:id', async ({ request }) => {
-        path = new URL(request.url).pathname;
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 11 });
-      }),
-    );
-    await byName('billingo_update_spending').handler(fullUpdate, ctx);
-    expect(path).toBe('/v3/spendings/11');
-    expect(body['id']).toBeUndefined();
-    expect(body['total_gross']).toBe(20000);
-  });
-
-  it('rejects a body missing SpendingSave.required fields — PUT reuses the create schema', () => {
-    const schema = z.object(byName('billingo_update_spending').inputSchema);
-    expect(() => schema.parse({ id: 11 })).toThrow();
-    expect(() => schema.parse({ id: 11, total_gross: 20000 })).toThrow();
-    expect(schema.parse(fullUpdate)).toMatchObject({ total_gross: 20000 });
-  });
-
-  it('is marked destructive — omitted optional fields are cleared by the API', () => {
-    expect(byName('billingo_update_spending').annotations.destructiveHint).toBe(true);
-  });
-});
-
 describe('billingo_delete_spending', () => {
   it('is registered, write-scoped and marked destructive', () => {
     const tool = byName('billingo_delete_spending');

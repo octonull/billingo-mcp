@@ -279,7 +279,7 @@ szükséges csoportok töltődnek be.
 - `billingo_list_partners` — Partnerek listázása.
 - `billingo_get_partner` — Egy partner lekérése.
 - `billingo_create_partner` — Partner létrehozása. _(író)_
-- `billingo_update_partner` — Partner módosítása (teljes felülírás). _(író)_
+- `billingo_update_partner` — Partner módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_guess_partner` — Partner keresése adószám/email alapján, vagy létrehozása. _(író)_
 - `billingo_delete_partner` — Partner törlése. _(író)_
 
@@ -289,7 +289,7 @@ szükséges csoportok töltődnek be.
 - `billingo_get_product` — Egy termék lekérése.
 - `billingo_get_product_quantity` — Egy termék készletmennyiségének lekérése.
 - `billingo_create_product` — Termék létrehozása. _(író)_
-- `billingo_update_product` — Termék módosítása (teljes felülírás). _(író)_
+- `billingo_update_product` — Termék módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_delete_product` — Termék törlése. _(író)_
 
 **Kiadások (Spendings)** (2 olvasó, 3 író)
@@ -297,7 +297,7 @@ szükséges csoportok töltődnek be.
 - `billingo_list_spendings` — Kiadások listázása.
 - `billingo_get_spending` — Egy kiadás lekérése.
 - `billingo_create_spending` — Kiadás létrehozása. _(író)_
-- `billingo_update_spending` — Kiadás módosítása (teljes felülírás). _(író)_
+- `billingo_update_spending` — Kiadás módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_delete_spending` — Kiadás törlése. _(író)_
 
 **Bankszámlák** (2 olvasó, 3 író)
@@ -305,7 +305,7 @@ szükséges csoportok töltődnek be.
 - `billingo_list_bank_accounts` — Bankszámlák listázása.
 - `billingo_get_bank_account` — Egy bankszámla lekérése.
 - `billingo_create_bank_account` — Bankszámla létrehozása. _(író)_
-- `billingo_update_bank_account` — Bankszámla módosítása (teljes felülírás). _(író)_
+- `billingo_update_bank_account` — Bankszámla módosítása; csak a megadott mezők változnak. _(író)_
 - `billingo_delete_bank_account` — Bankszámla törlése. _(író)_
 
 **Dokumentumblokkok** (1 olvasó, 1 író)
@@ -368,9 +368,17 @@ szükséges csoportok töltődnek be.
   újrapróbálás előtt `vendor_id` alapján ellenőrizd. Egy újrapróbált törlés
   `not_found` választ adhat, ha az első kísérlet mégis lefutott. Az SDK bemeneti validációs hibái
   továbbra is csak szövegesek.
-- **Teljes felülírás.** Az `update_*` és az `update_payment` eszközök a teljes rekordot
-  küldik: amit kihagysz, azt a Billingo törli. Ezért `destructiveHint: true` jelöléssel
-  szerepelnek; előbb olvasd ki a rekordot, és a teljes, módosított változatot küldd.
+- **Módosítás.** A Billingo API módosításkor a teljes rekordot lecseréli, és amit nem
+  küldünk el, azt törli. Ezért a partner, termék, bankszámla és kiadás `update_*`
+  eszközei előbb kiolvassák a rekordot, és a megadott változtatásokkal együtt a teljes
+  rekordot küldik vissza: elég csak a változó mezőt megadni. Az `update_payment` viszont a
+  teljes kifizetéslistát cseréli, ezért előbb olvasd ki a meglévő kifizetéseket. Mindegyik
+  `destructiveHint: true` jelölésű. Az olvasás és az írás két külön kérés, így ami a kettő
+  között a Billingóban változik, az felülíródik. Forintos kiadásnál a `*_huf` összegek
+  követik a végösszegeket; más pénznemben a Billingo nem vált át, ezért új összeghez,
+  pénznemhez vagy árfolyamhoz a forintos összegeket is meg kell adni. A kiadás tételei
+  (`items`, NAV-importból) nem részei az író modellnek; hogy módosításkor megmaradnak-e,
+  nem ellenőriztük.
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
@@ -649,7 +657,7 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 - `billingo_list_partners` — List partners.
 - `billingo_get_partner` — Get a single partner.
 - `billingo_create_partner` — Create a partner. _(write)_
-- `billingo_update_partner` — Update a partner (full replace). _(write)_
+- `billingo_update_partner` — Update a partner; only the fields you send change. _(write)_
 - `billingo_guess_partner` — Find a partner by tax number/email, or create one. _(write)_
 - `billingo_delete_partner` — Delete a partner. _(write)_
 
@@ -659,7 +667,7 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 - `billingo_get_product` — Get a single product.
 - `billingo_get_product_quantity` — Get a product's stock quantity.
 - `billingo_create_product` — Create a product. _(write)_
-- `billingo_update_product` — Update a product (full replace). _(write)_
+- `billingo_update_product` — Update a product; only the fields you send change. _(write)_
 - `billingo_delete_product` — Delete a product. _(write)_
 
 **Spendings** (2 read, 3 write)
@@ -667,7 +675,7 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 - `billingo_list_spendings` — List spendings.
 - `billingo_get_spending` — Get a single spending.
 - `billingo_create_spending` — Create a spending. _(write)_
-- `billingo_update_spending` — Update a spending (full replace). _(write)_
+- `billingo_update_spending` — Update a spending; only the fields you send change. _(write)_
 - `billingo_delete_spending` — Delete a spending. _(write)_
 
 **Bank accounts** (2 read, 3 write)
@@ -675,7 +683,7 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 - `billingo_list_bank_accounts` — List bank accounts.
 - `billingo_get_bank_account` — Get a single bank account.
 - `billingo_create_bank_account` — Create a bank account. _(write)_
-- `billingo_update_bank_account` — Update a bank account (full replace). _(write)_
+- `billingo_update_bank_account` — Update a bank account; only the fields you send change. _(write)_
 - `billingo_delete_bank_account` — Delete a bank account. _(write)_
 
 **Document blocks** (1 read, 1 write)
@@ -738,9 +746,16 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
   have been issued, so check by `vendor_id` before trying again. A retried delete may
   answer `not_found` when the first attempt went through. Input-validation errors
   from the SDK keep their plain-text form.
-- **Full replace.** The `update_*` tools and `update_payment` send the whole record and
-  Billingo clears whatever is left out, so they carry `destructiveHint: true`. Read the
-  record first and send the complete, edited version.
+- **Updates.** Billingo's API replaces the whole record on update and clears what is
+  left out. The partner, product, bank account and spending `update_*` tools therefore
+  read the record first and send it back complete with your changes: send only the
+  field that changes. `update_payment` still replaces the whole payment list, so read
+  the existing payments first. All of them carry `destructiveHint: true`. The read and
+  the write are two requests, so a change made in Billingo between them is overwritten.
+  On a HUF spending the `*_huf` amounts follow the totals; in another currency Billingo
+  does not convert, so a new total, currency or rate needs its HUF amounts too. A
+  spending's line items (`items`, from NAV imports) are not part of the write model;
+  whether an update keeps them is not verified.
 
 ⬆️ [Back to top](#tartalomjegyzék)
 

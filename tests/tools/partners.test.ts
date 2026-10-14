@@ -184,54 +184,6 @@ describe('billingo_create_partner', () => {
   });
 });
 
-describe('billingo_update_partner', () => {
-  it('is marked destructive and says omitted fields are cleared — PUT does not keep them', () => {
-    const tool = byName('billingo_update_partner');
-    expect(tool.annotations.destructiveHint).toBe(true);
-    expect(tool.description).toContain('the API clears them');
-  });
-
-  const fullUpdate = {
-    id: 42,
-    name: 'New name',
-    address: { country_code: 'HU', post_code: '1011', city: 'Budapest', address: 'Fő utca 1.' },
-  };
-
-  it('puts the full record to /partners/{id}', async () => {
-    let path = '';
-    let body: unknown = null;
-    server.use(
-      http.put('https://api.billingo.hu/v3/partners/:id', async ({ request }) => {
-        path = new URL(request.url).pathname;
-        body = await request.json();
-        return HttpResponse.json({ id: 42, name: 'New name' });
-      }),
-    );
-    await byName('billingo_update_partner').handler(fullUpdate, ctx);
-    expect(path).toBe('/v3/partners/42');
-    expect(body).toMatchObject({ name: 'New name', address: fullUpdate.address });
-  });
-
-  it('does not send the id in the body', async () => {
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.put('https://api.billingo.hu/v3/partners/:id', async ({ request }) => {
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 42 });
-      }),
-    );
-    await byName('billingo_update_partner').handler(fullUpdate, ctx);
-    expect(body['id']).toBeUndefined();
-  });
-
-  it('rejects a body missing the now-required address — PUT is a full replace, not a patch', () => {
-    const schema = z.object(byName('billingo_update_partner').inputSchema);
-    expect(() => schema.parse({ id: 42, name: 'New name' })).toThrow();
-    expect(() => schema.parse({ id: 42, address: fullUpdate.address })).toThrow();
-    expect(schema.parse(fullUpdate)).toMatchObject({ name: 'New name' });
-  });
-});
-
 describe('billingo_guess_partner', () => {
   it('posts to /partners/guess and warns that a miss creates a partner', async () => {
     let body: unknown = null;

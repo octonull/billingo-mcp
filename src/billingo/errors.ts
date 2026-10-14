@@ -8,6 +8,9 @@ export interface ValidationIssue {
   message: string;
 }
 
+/** A call this package refuses before it reaches the API, because its arguments conflict. */
+export class BillingoArgumentError extends BillingoError {}
+
 /** An error response from the Billingo API. */
 export class BillingoApiError extends BillingoError {
   constructor(
@@ -191,6 +194,8 @@ export function describeError(
   error: BillingoError,
   { idempotent }: { idempotent: boolean } = { idempotent: false },
 ): ToolErrorDetails {
+  if (error instanceof BillingoArgumentError)
+    return { code: 'invalid_arguments', retryable: false };
   if (!(error instanceof BillingoApiError)) return { code: 'client_error', retryable: false };
   const details: ToolErrorDetails = {
     code: codeForStatus(error.status, error.message),

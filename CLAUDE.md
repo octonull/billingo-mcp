@@ -130,10 +130,12 @@ every one of them passed the mocked suite, because MSW accepts whatever you send
 - **Every `PUT` is a full replace, not a partial update.** `PUT /partners/{id}` with just
   `{"name":"x"}` returns 422 demanding `address.post_code`, `address.city`,
   `address.address`; products demand `currency`/`unit`/`vat`; bank accounts demand
-  `account_number`/`currency`. The `update_*` tools therefore require the same field set
-  as their `create_*` counterparts, and their descriptions tell the model to fetch the
-  record first and merge. Do not "helpfully" relax those schemas — that just moves the
-  422 from us to the API.
+  `account_number`/`currency`. And a `PUT` that leaves an optional field out clears it.
+  The `update_*` tools for partners, products, bank accounts and spendings therefore
+  read the record and send it back complete with the caller's changes
+  (`src/tools/merge.ts`): their inputs are all optional, and a model sends only what
+  changes. When the API's write model gains a field, add it to that tool's `*_WRITABLE`
+  list, or an update will clear it. `update_payment` is still a plain full replace.
 - **The finalize endpoints require the full document body.** `PUT /documents/{id}`
   (`CreateDocumentFromDraft`) and `PUT /documents/receipt/{id}` declare
   `requestBody.required: true` with `DocumentInsert` / `ReceiptInsert`. Their prose

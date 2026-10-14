@@ -427,22 +427,40 @@ live('live: API behaviours the tools depend on', () => {
     }
   });
 
-  it('update tools: a read-then-write through the MCP tools keeps every stored field', async () => {
+  it('update tools: sending one field through the MCP tools changes that field and nothing else', async () => {
     const server = createServer({ client, allowWrite: true });
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    const mcp = new Client({ name: 'live-roundtrip', version: '0.0.0' });
+    const mcp = new Client({ name: 'live-partial-update', version: '0.0.0' });
     await Promise.all([mcp.connect(clientTransport), server.connect(serverTransport)]);
-    const call = async (name: string, args: Record<string, unknown>) =>
-      (await mcp.callTool({ name, arguments: args })) as CallToolResult;
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const result = (await mcp.callTool({ name, arguments: args })) as CallToolResult;
+      expect(result.isError, `${name}: ${JSON.stringify(result.content).slice(0, 300)}`).not.toBe(
+        true,
+      );
+      return result;
+    };
     const data = (r: CallToolResult) =>
       JSON.parse((r.content.at(-1) as { text: string }).text) as Record<string, unknown>;
+    /** Every field of `before` except `changed` must be identical in `after`. */
+    const sameExcept = (
+      before: Record<string, unknown>,
+      after: Record<string, unknown>,
+      changed: string,
+    ) => {
+      for (const key of Object.keys(before)) {
+        if (key !== changed) expect(after[key], key).toEqual(before[key]);
+      }
+    };
 
-    const created = data(
-      await call('billingo_create_partner', {
-        name: 'live roundtrip partner',
+    // A partner with every kind of field set, and one with only name and address.
+    for (const body of [
+      {
+        name: 'live partial partner full',
         address,
-        emails: ['roundtrip@example.com'],
+        emails: ['partial@example.com'],
         phone: '+36301234567',
+        taxcode: '12345678-2-42',
+        tax_type: 'HAS_TAX_NUMBER',
         iban: 'HU42117730161111101800000000',
         swift: 'OTPVHUHB',
         internal_comment: 'keep me',
@@ -452,36 +470,29 @@ live('live: API behaviours the tools depend on', () => {
           giro_different_amount_allowed: true,
         },
         custom_billing_settings: { due_days: 15, payment_method: 'cash' },
-      }),
-    );
-    partnerIds.push(created['id'] as number);
-    const read = data(await call('billingo_get_partner', { id: created['id'] }));
-    // The model's update: same record, new phone.
-    await call('billingo_update_partner', {
-      id: created['id'],
-      name: read['name'],
-      address,
-      emails: read['emails'],
-      phone: '+36301112222',
-      iban: read['iban'],
-      swift: read['swift'],
-      internal_comment: read['internal_comment'],
-      giro_settings: read['giro_settings'],
-      custom_billing_settings: { due_days: 15, payment_method: 'cash' },
-    });
-    const after = data(await call('billingo_get_partner', { id: created['id'] }));
-    expect(after).toMatchObject({
-      phone: '+36301112222',
-      iban: 'HU42117730161111101800000000',
-      swift: 'OTPVHUHB',
-      internal_comment: 'keep me',
-      giro_settings: { giro_payment_request_enabled: true },
-      custom_billing_settings: { due_days: 15, payment_method: 'cash' },
-    });
+      },
+      { name: 'live partial partner minimal', address },
+    ]) {
+      const created = data(await call('billingo_create_partner', body));
+      partnerIds.push(created['id'] as number);
+      const before = data(await call('billingo_get_partner', { id: created['id'] }));
+      const result = await call('billingo_update_partner', {
+        id: created['id'],
+        phone: '+36301112222',
+      });
+      expect(result.isError, body.name).not.toBe(true);
+      const after = data(await call('billingo_get_partner', { id: created['id'] }));
+      expect(after['phone']).toBe('+36301112222');
+      sameExcept(before, after, 'phone');
+      // The whole record read back, nulls inside nested objects included, sent as-is.
+      const { id: partnerKey, ...readBack } = after;
+      await call('billingo_update_partner', { id: partnerKey, ...readBack });
+      sameExcept(after, data(await call('billingo_get_partner', { id: created['id'] })), '');
+    }
 
     const product = data(
       await call('billingo_create_product', {
-        name: 'live roundtrip product',
+        name: 'live partial product',
         net_unit_price: 1000,
         currency: 'HUF',
         vat: '27%',
@@ -489,27 +500,84 @@ live('live: API behaviours the tools depend on', () => {
         sku: 'S1',
         ean: '5990000000000',
         purchase_price: 500,
+        comment: 'keep',
       }),
     );
     productIds.push(product['id'] as number);
-    const p = data(await call('billingo_get_product', { id: product['id'] }));
+    const pBefore = data(await call('billingo_get_product', { id: product['id'] }));
     await call('billingo_update_product', {
       id: product['id'],
-      name: 'live roundtrip product renamed',
-      net_unit_price: p['net_unit_price'],
-      currency: p['currency'],
-      vat: p['vat'],
-      unit: p['unit'],
-      sku: p['sku'],
-      ean: p['ean'],
-      purchase_price: p['purchase_price'],
+      name: 'live partial product renamed',
     });
     const pAfter = data(await call('billingo_get_product', { id: product['id'] }));
-    expect(pAfter).toMatchObject({
-      name: 'live roundtrip product renamed',
-      sku: 'S1',
-      ean: '5990000000000',
-      purchase_price: 500,
+    expect(pAfter['name']).toBe('live partial product renamed');
+    sameExcept(pBefore, pAfter, 'name');
+    // A new net price sent together with the stale gross price from the read.
+    await call('billingo_update_product', {
+      id: product['id'],
+      net_unit_price: 2000,
+      gross_unit_price: pAfter['gross_unit_price'],
+    });
+    const pPriced = data(await call('billingo_get_product', { id: product['id'] }));
+    expect(pPriced['net_unit_price']).toBe(2000);
+    expect(pPriced['sku']).toBe('S1');
+
+    await call('billingo_create_bank_account', {
+      name: 'live partial bank',
+      account_number: '11773016-11111018-00000000',
+      account_number_iban: 'HU42117730161111101800000000',
+      swift: 'OTPVHUHB',
+      currency: 'HUF',
+    });
+    const banks = data(await call('billingo_list_bank_accounts', { per_page: 100 }));
+    const bank = (banks['data'] as { id: number; name: string }[]).find(
+      (b) => b.name === 'live partial bank',
+    );
+    expect(bank).toBeDefined();
+    bankAccountIds.push(bank?.id ?? 0);
+    const bBefore = data(await call('billingo_get_bank_account', { id: bank?.id }));
+    await call('billingo_update_bank_account', { id: bank?.id, name: 'live partial bank renamed' });
+    const bAfter = data(await call('billingo_get_bank_account', { id: bank?.id }));
+    expect(bAfter['name']).toBe('live partial bank renamed');
+    sameExcept(bBefore, bAfter, 'name');
+
+    const spending = data(
+      await call('billingo_create_spending', {
+        category: 'other',
+        currency: 'HUF',
+        total_gross: 1270,
+        total_gross_huf: 1270,
+        total_vat_amount: 270,
+        total_vat_amount_huf: 270,
+        fulfillment_date: today,
+        payment_method: 'cash',
+        conversion_rate: 1,
+        invoice_number: 'LIVE-PARTIAL',
+        invoice_date: today,
+        due_date: today,
+        comment: 'before',
+        partner_id: partnerId,
+      }),
+    );
+    spendingIds.push(spending['id'] as number);
+    const sBefore = data(await call('billingo_get_spending', { id: spending['id'] }));
+    await call('billingo_update_spending', { id: spending['id'], comment: 'after' });
+    const sAfter = data(await call('billingo_get_spending', { id: spending['id'] }));
+    expect(sAfter['comment']).toBe('after');
+    sameExcept(sBefore, sAfter, 'comment');
+    // A new HUF total brings its HUF amount along; Billingo itself would keep the old one.
+    await call('billingo_update_spending', {
+      id: spending['id'],
+      total_gross: 2540,
+      total_vat_amount: 540,
+    });
+    const sTotals = data(await call('billingo_get_spending', { id: spending['id'] }));
+    expect(sTotals).toMatchObject({
+      total_gross: 2540,
+      total_gross_local: 2540,
+      total_vat_amount: 540,
+      total_vat_amount_local: 540,
+      comment: 'after',
     });
     await mcp.close();
   });
