@@ -5,12 +5,15 @@ import { BillingoError, describeError } from './billingo/errors.js';
 import type { BillingoClient } from './billingo/client.js';
 import { errorResult, filterByScope } from './tools/registry.js';
 import type { AnyToolDefinition, ToolContext } from './tools/registry.js';
-import { allTools } from './tools/index.js';
+import { toolsInCategories } from './tools/index.js';
+import type { ToolCategory } from './tools/index.js';
 
 export interface CreateServerOptions {
   client: BillingoClient;
   /** When false, write tools are never registered — the model cannot see them. */
   allowWrite: boolean;
+  /** Only these tool groups are registered. Undefined registers every group. */
+  categories?: readonly ToolCategory[] | undefined;
 }
 
 /**
@@ -47,18 +50,21 @@ async function runTool(
   return result;
 }
 
-export function createServer({ client, allowWrite }: CreateServerOptions): McpServer {
+export function createServer({ client, allowWrite, categories }: CreateServerOptions): McpServer {
   const server = new McpServer(
     { name: 'billingo', version: '0.1.0' },
     {
       instructions:
-        'Tools for the Billingo invoicing API. Issued invoices are reported to NAV automatically and cannot be undone — always confirm details with the user before creating, finalizing, cancelling or sending a document. If write tools are absent, the server is in read-only mode and the user must enable writes themselves.',
+        'Tools for the Billingo invoicing API. Issued invoices are reported to NAV automatically and cannot be undone — always confirm details with the user before creating, finalizing, cancelling or sending a document. If write tools are absent, the server is in read-only mode and the user must enable writes themselves.' +
+        (categories === undefined
+          ? ''
+          : ` This connection loads only these tool groups: ${categories.join(', ')}. For other parts of Billingo the user must add them to the connection.`),
     },
   );
 
   const ctx: ToolContext = { client };
 
-  for (const tool of filterByScope(allTools, allowWrite)) {
+  for (const tool of filterByScope(toolsInCategories(categories), allowWrite)) {
     server.registerTool(
       tool.name,
       {

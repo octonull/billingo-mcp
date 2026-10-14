@@ -211,21 +211,23 @@ hozzáféréshez.
 
 ## 🔧 Konfiguráció
 
-| Változó                  | Transport  | Kötelező | Alapérték                             | Jelentés                                                                                                                                                           |
-| ------------------------ | ---------- | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `BILLINGO_API_KEY`       | csak stdio | igen     | —                                     | A Billingo API kulcsod. HTTP módban nem ezt olvassa a szerver — lásd lent.                                                                                         |
-| `BILLINGO_ALLOW_WRITE`   | csak stdio | nem      | `false`                               | `"true"` vagy `"1"` érték engedélyezi az író (write) eszközöket ennél a stdio folyamatnál. Bármi más érték (elgépelést is beleértve) `false`-nak számít.           |
-| `BILLINGO_BASE_URL`      | mindkettő  | nem      | `https://api.billingo.hu/v3`          | Az API alap URL felülírása, pl. proxy mögé állításhoz.                                                                                                             |
-| `PORT`                   | csak HTTP  | nem      | `3000`                                | A HTTP szerver figyelési portja.                                                                                                                                   |
-| `BILLINGO_ALLOWED_HOSTS` | csak HTTP  | nem      | nincs beállítva (védelem kikapcsolva) | Vesszővel elválasztott lista az elfogadott `Host` fejléc-értékekről — DNS-rebinding védelem. **Mindig állítsd be, ha a szerver localhoston kívülről is elérhető.** |
+| Változó                    | Transport  | Kötelező | Alapérték                             | Jelentés                                                                                                                                                                                                            |
+| -------------------------- | ---------- | -------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BILLINGO_API_KEY`         | csak stdio | igen     | —                                     | A Billingo API kulcsod. HTTP módban nem ezt olvassa a szerver — lásd lent.                                                                                                                                          |
+| `BILLINGO_ALLOW_WRITE`     | csak stdio | nem      | `false`                               | `"true"` vagy `"1"` érték engedélyezi az író (write) eszközöket ennél a stdio folyamatnál. Bármi más érték (elgépelést is beleértve) `false`-nak számít.                                                            |
+| `BILLINGO_TOOL_CATEGORIES` | csak stdio | nem      | mind                                  | Vesszővel elválasztott eszközcsoportok, csak ezek töltődnek be: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `document_blocks`, `documents`. Ismeretlen név esetén a szerver el sem indul. |
+| `BILLINGO_BASE_URL`        | mindkettő  | nem      | `https://api.billingo.hu/v3`          | Az API alap URL felülírása, pl. proxy mögé állításhoz.                                                                                                                                                              |
+| `PORT`                     | csak HTTP  | nem      | `3000`                                | A HTTP szerver figyelési portja.                                                                                                                                                                                    |
+| `BILLINGO_ALLOWED_HOSTS`   | csak HTTP  | nem      | nincs beállítva (védelem kikapcsolva) | Vesszővel elválasztott lista az elfogadott `Host` fejléc-értékekről — DNS-rebinding védelem. **Mindig állítsd be, ha a szerver localhoston kívülről is elérhető.**                                                  |
 
 HTTP módban a hitelesítés és a jogosultsági kör (scope) **kérésenként**, fejlécben
 érkezik:
 
-| Fejléc                   | Kötelező | Jelentés                                                                        |
-| ------------------------ | -------- | ------------------------------------------------------------------------------- |
-| `X-Billingo-Api-Key`     | igen     | A kérésnél használandó Billingo API kulcs. Soha nem kerül tárolásra.            |
-| `X-Billingo-Allow-Write` | nem      | `"true"` vagy `"1"` engedélyezi az író eszközöket, de csak erre az egy kérésre. |
+| Fejléc                       | Kötelező | Jelentés                                                                                                                                                                                                                   |
+| ---------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `X-Billingo-Api-Key`         | igen     | A kérésnél használandó Billingo API kulcs. Soha nem kerül tárolásra.                                                                                                                                                       |
+| `X-Billingo-Allow-Write`     | nem      | `"true"` vagy `"1"` engedélyezi az író eszközöket, de csak erre az egy kérésre.                                                                                                                                            |
+| `X-Billingo-Tool-Categories` | nem      | Ugyanaz a csoportlista, mint a `BILLINGO_TOOL_CATEGORIES`, erre az egy kérésre. Fejlécet nem kezelő kliensnél `?categories=documents,partners` a URL-ben; ha mindkettő meg van adva, a fejléc számít. Ismeretlen név: 400. |
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
 
@@ -262,7 +264,9 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 ## 🧰 Eszközök
 
 Összesen 49 eszköz: 22 olvasó (mindig látható), 27 író (csak akkor látható, ha az
-írás engedélyezve van).
+írás engedélyezve van). Ha egy kliens minden eszköz sémáját a promptba teszi, a
+`BILLINGO_TOOL_CATEGORIES` (HTTP-n `X-Billingo-Tool-Categories`) beállítással csak a
+szükséges csoportok töltődnek be.
 
 **Szervezet (Organization)** (3 olvasó)
 
@@ -582,20 +586,22 @@ claude mcp add --transport http billingo http://localhost:3000 \
 
 ## 🔧 Configuration
 
-| Variable                 | Transport  | Required | Default                      | Meaning                                                                                                                                                               |
-| ------------------------ | ---------- | -------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BILLINGO_API_KEY`       | stdio only | yes      | —                            | Your Billingo API key. Not read in HTTP mode — see below.                                                                                                             |
-| `BILLINGO_ALLOW_WRITE`   | stdio only | no       | `false`                      | `"true"` or `"1"` enables write tools for this stdio process. Any other value (including a typo) is treated as `false`.                                               |
-| `BILLINGO_BASE_URL`      | both       | no       | `https://api.billingo.hu/v3` | Override the API base URL, e.g. to point at a proxy.                                                                                                                  |
-| `PORT`                   | HTTP only  | no       | `3000`                       | Port the HTTP server listens on.                                                                                                                                      |
-| `BILLINGO_ALLOWED_HOSTS` | HTTP only  | no       | unset (protection disabled)  | Comma-separated list of `Host` header values the server will accept — DNS-rebinding protection. **Set this whenever the server is reachable from outside localhost.** |
+| Variable                   | Transport  | Required | Default                      | Meaning                                                                                                                                                                                                    |
+| -------------------------- | ---------- | -------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BILLINGO_API_KEY`         | stdio only | yes      | —                            | Your Billingo API key. Not read in HTTP mode — see below.                                                                                                                                                  |
+| `BILLINGO_ALLOW_WRITE`     | stdio only | no       | `false`                      | `"true"` or `"1"` enables write tools for this stdio process. Any other value (including a typo) is treated as `false`.                                                                                    |
+| `BILLINGO_TOOL_CATEGORIES` | stdio only | no       | all                          | Comma-separated tool groups to load, and only these: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `document_blocks`, `documents`. An unknown name stops the server from starting. |
+| `BILLINGO_BASE_URL`        | both       | no       | `https://api.billingo.hu/v3` | Override the API base URL, e.g. to point at a proxy.                                                                                                                                                       |
+| `PORT`                     | HTTP only  | no       | `3000`                       | Port the HTTP server listens on.                                                                                                                                                                           |
+| `BILLINGO_ALLOWED_HOSTS`   | HTTP only  | no       | unset (protection disabled)  | Comma-separated list of `Host` header values the server will accept — DNS-rebinding protection. **Set this whenever the server is reachable from outside localhost.**                                      |
 
 HTTP mode takes credentials and scope **per request**, as headers, instead:
 
-| Header                   | Required | Meaning                                                      |
-| ------------------------ | -------- | ------------------------------------------------------------ |
-| `X-Billingo-Api-Key`     | yes      | The Billingo API key to use for this request. Never stored.  |
-| `X-Billingo-Allow-Write` | no       | `"true"` or `"1"` enables write tools for this request only. |
+| Header                       | Required | Meaning                                                                                                                                                                                                           |
+| ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `X-Billingo-Api-Key`         | yes      | The Billingo API key to use for this request. Never stored.                                                                                                                                                       |
+| `X-Billingo-Allow-Write`     | no       | `"true"` or `"1"` enables write tools for this request only.                                                                                                                                                      |
+| `X-Billingo-Tool-Categories` | no       | The same group list as `BILLINGO_TOOL_CATEGORIES`, for this request. Clients that cannot set a header can use `?categories=documents,partners` in the URL; when both are set, the header wins. Unknown name: 400. |
 
 ⬆️ [Back to top](#tartalomjegyzék)
 
@@ -629,6 +635,8 @@ Read this section before exposing the server to anything.
 ## 🧰 Tools
 
 49 tools total: 22 read (always visible), 27 write (visible only with writes enabled).
+If your client puts every tool schema into the prompt, load only the groups you need
+with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 
 **Organization** (3 read)
 

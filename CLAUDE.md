@@ -64,7 +64,9 @@ to know a tool call is happening.
    Build schemas with `z.looseObject` only: a plain `z.object` is published with
    `additionalProperties: false`, and SDK clients then reject any field Billingo adds.
 4. It is automatically picked up by `src/tools/index.ts` into `allTools` — no other wiring
-   needed.
+   needed. Its module's array decides its tool category (`toolsByCategory`), which
+   `BILLINGO_TOOL_CATEGORIES` filters on; a new module's array must be added to a
+   category there (a new one or an existing one).
 5. Update the surface assertions in `tests/server/server.test.ts`: the total-count test
    (`toHaveLength(49)`, `22` read, `27` write) and any per-module test that enumerates
    tool names. These counts are load-bearing — they are the mechanism that catches a
