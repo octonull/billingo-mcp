@@ -5,6 +5,7 @@ import {
   paymentMethodSchema,
   vatSchema,
   documentTypeSchema,
+  documentLanguageSchema,
 } from '../../billingo/enums.js';
 import { isoDate } from '../../billingo/dates.js';
 import { defineTool, jsonResult } from '../registry.js';
@@ -29,13 +30,6 @@ const NAV_WARNING =
  * that DocumentInsertType rejects.
  */
 const documentInsertTypeSchema = z.enum(['advance', 'draft', 'invoice', 'proforma']);
-
-/**
- * Per spec components.schemas.DocumentLanguage.enum. The brief guessed
- * ['hu','en','de','fr','it','hr','ro','sk','es','cz','pl'] — wrong on both ends: "es",
- * "cz" and "pl" do not exist, and "us" (present in the real enum) was missing.
- */
-const documentLanguageSchema = z.enum(['de', 'en', 'fr', 'hr', 'hu', 'it', 'ro', 'sk', 'us']);
 
 /** Per spec components.schemas.Round.enum — the brief invented a "half_up" value. */
 const roundSchema = z.enum(['five', 'none', 'one', 'ten']);

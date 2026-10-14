@@ -427,6 +427,93 @@ live('live: API behaviours the tools depend on', () => {
     }
   });
 
+  it('update tools: a read-then-write through the MCP tools keeps every stored field', async () => {
+    const server = createServer({ client, allowWrite: true });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const mcp = new Client({ name: 'live-roundtrip', version: '0.0.0' });
+    await Promise.all([mcp.connect(clientTransport), server.connect(serverTransport)]);
+    const call = async (name: string, args: Record<string, unknown>) =>
+      (await mcp.callTool({ name, arguments: args })) as CallToolResult;
+    const data = (r: CallToolResult) =>
+      JSON.parse((r.content.at(-1) as { text: string }).text) as Record<string, unknown>;
+
+    const created = data(
+      await call('billingo_create_partner', {
+        name: 'live roundtrip partner',
+        address,
+        emails: ['roundtrip@example.com'],
+        phone: '+36301234567',
+        iban: 'HU42117730161111101800000000',
+        swift: 'OTPVHUHB',
+        internal_comment: 'keep me',
+        giro_settings: {
+          giro_default_settings: false,
+          giro_payment_request_enabled: true,
+          giro_different_amount_allowed: true,
+        },
+        custom_billing_settings: { due_days: 15, payment_method: 'cash' },
+      }),
+    );
+    partnerIds.push(created['id'] as number);
+    const read = data(await call('billingo_get_partner', { id: created['id'] }));
+    // The model's update: same record, new phone.
+    await call('billingo_update_partner', {
+      id: created['id'],
+      name: read['name'],
+      address,
+      emails: read['emails'],
+      phone: '+36301112222',
+      iban: read['iban'],
+      swift: read['swift'],
+      internal_comment: read['internal_comment'],
+      giro_settings: read['giro_settings'],
+      custom_billing_settings: { due_days: 15, payment_method: 'cash' },
+    });
+    const after = data(await call('billingo_get_partner', { id: created['id'] }));
+    expect(after).toMatchObject({
+      phone: '+36301112222',
+      iban: 'HU42117730161111101800000000',
+      swift: 'OTPVHUHB',
+      internal_comment: 'keep me',
+      giro_settings: { giro_payment_request_enabled: true },
+      custom_billing_settings: { due_days: 15, payment_method: 'cash' },
+    });
+
+    const product = data(
+      await call('billingo_create_product', {
+        name: 'live roundtrip product',
+        net_unit_price: 1000,
+        currency: 'HUF',
+        vat: '27%',
+        unit: 'db',
+        sku: 'S1',
+        ean: '5990000000000',
+        purchase_price: 500,
+      }),
+    );
+    productIds.push(product['id'] as number);
+    const p = data(await call('billingo_get_product', { id: product['id'] }));
+    await call('billingo_update_product', {
+      id: product['id'],
+      name: 'live roundtrip product renamed',
+      net_unit_price: p['net_unit_price'],
+      currency: p['currency'],
+      vat: p['vat'],
+      unit: p['unit'],
+      sku: p['sku'],
+      ean: p['ean'],
+      purchase_price: p['purchase_price'],
+    });
+    const pAfter = data(await call('billingo_get_product', { id: product['id'] }));
+    expect(pAfter).toMatchObject({
+      name: 'live roundtrip product renamed',
+      sku: 'S1',
+      ean: '5990000000000',
+      purchase_price: 500,
+    });
+    await mcp.close();
+  });
+
   it('every read tool with an outputSchema returns live data that matches it', async () => {
     const doc = await invoice();
     const server = createServer({ client, allowWrite: false });

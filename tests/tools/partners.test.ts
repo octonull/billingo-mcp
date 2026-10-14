@@ -106,6 +106,33 @@ describe('billingo_get_partner', () => {
 });
 
 describe('billingo_create_partner', () => {
+  it('carries iban, swift, internal_comment, giro_settings and the real custom billing fields', () => {
+    const schema = z.object(byName('billingo_create_partner').inputSchema);
+    const parsed = schema.parse({
+      name: 'Example Kft.',
+      address: {
+        country_code: 'HU',
+        post_code: '1011',
+        city: 'Budapest',
+        address: 'Példa utca 1.',
+      },
+      iban: 'HU42117730161111101800000000',
+      swift: 'OTPVHUHB',
+      internal_comment: 'note',
+      giro_settings: { giro_payment_request_enabled: true },
+      custom_billing_settings: { due_days: 15, payment_method: 'cash', document_currency: 'EUR' },
+      default_currency: 'EUR',
+    });
+    expect(parsed).toMatchObject({ iban: 'HU42117730161111101800000000', swift: 'OTPVHUHB' });
+    expect(parsed.custom_billing_settings).toEqual({
+      due_days: 15,
+      payment_method: 'cash',
+      document_currency: 'EUR',
+    });
+    // The fields Billingo ignored are no longer part of the schema, so they are not sent.
+    expect(parsed).not.toHaveProperty('default_currency');
+  });
+
   it('takes the API tax_type values — the lowercase ones were silently stored as unset', () => {
     const schema = z.object(byName('billingo_create_partner').inputSchema);
     const base = {

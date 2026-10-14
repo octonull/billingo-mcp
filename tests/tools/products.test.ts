@@ -130,6 +130,28 @@ describe('billingo_create_product', () => {
 });
 
 describe('billingo_update_product', () => {
+  it('carries sku, ean, general_ledger_taxcode and purchase_price, which a PUT would clear', () => {
+    const schema = z.object(byName('billingo_update_product').inputSchema);
+    const parsed = schema.parse({
+      id: 3,
+      name: 'Widget',
+      currency: 'HUF',
+      vat: '27%',
+      unit: 'db',
+      net_unit_price: 1000,
+      sku: 'S1',
+      ean: '5990000000000',
+      general_ledger_taxcode: 'T1',
+      purchase_price: 500,
+    });
+    expect(parsed).toMatchObject({
+      sku: 'S1',
+      ean: '5990000000000',
+      general_ledger_taxcode: 'T1',
+      purchase_price: 500,
+    });
+  });
+
   it('is marked destructive and says omitted fields are cleared — PUT does not keep them', () => {
     const tool = byName('billingo_update_product');
     expect(tool.annotations.destructiveHint).toBe(true);

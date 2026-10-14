@@ -1,7 +1,7 @@
 // src/tools/partners.ts
 import { z } from 'zod';
 import { paginatedSchema, partnerSchema } from '../billingo/schemas.js';
-import { currencySchema, paymentMethodSchema } from '../billingo/enums.js';
+import { currencySchema, documentLanguageSchema, paymentMethodSchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
 import { defineTool, jsonResult } from './registry.js';
@@ -51,10 +51,34 @@ const partnerFields = {
     ),
   phone: z.string().optional(),
   account_number: z.string().optional(),
+  // Verified live 2026-10-14: a partner PUT clears iban, swift and internal_comment and
+  // resets giro_settings to its defaults when they are left out, so they must be fields
+  // here for a read-then-write update to keep them.
+  iban: z.string().optional(),
+  swift: z.string().optional(),
+  internal_comment: z.string().optional().describe('Internal note, not printed on invoices.'),
+  giro_settings: z
+    .object({
+      giro_default_settings: z.boolean().optional(),
+      giro_payment_request_enabled: z.boolean().optional(),
+      giro_different_amount_allowed: z.boolean().optional(),
+    })
+    .optional()
+    .describe('GIRO direct-debit settings (components.schemas.PartnerGiroSettings).'),
   general_ledger_number: z.string().optional(),
-  default_currency: currencySchema.optional(),
-  default_payment_method: paymentMethodSchema.optional(),
-  custom_billing_settings: z.object({ payment_days: z.number().int().optional() }).optional(),
+  // Per spec components.schemas.PartnerCustomBillingSettings. Verified live 2026-10-14:
+  // the fields the tool used to offer (default_currency, default_payment_method and
+  // custom_billing_settings.payment_days) return 201 but are stored as null; due_days,
+  // payment_method and document_currency inside custom_billing_settings are stored.
+  custom_billing_settings: z
+    .object({
+      due_days: z.number().int().optional().describe('Default payment term in days.'),
+      payment_method: paymentMethodSchema.optional(),
+      document_currency: currencySchema.optional(),
+      template_language_code: documentLanguageSchema.optional(),
+    })
+    .optional()
+    .describe("Defaults Billingo applies to this partner's new documents."),
 };
 
 const listPartners = defineTool({

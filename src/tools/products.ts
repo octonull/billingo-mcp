@@ -20,6 +20,13 @@ const productFields = {
   unit: z.string().optional().describe('Unit of measure, e.g. "db", "óra", "hó".'),
   entitlement: z.string().optional(),
   general_ledger_number: z.string().optional(),
+  // Verified live 2026-10-14: a product PUT clears sku, ean, general_ledger_taxcode and
+  // purchase_price when they are left out, so they must be fields here for a
+  // read-then-write update to keep them.
+  general_ledger_taxcode: z.string().optional(),
+  sku: z.string().optional().describe('Stock-keeping unit (cikkszám).'),
+  ean: z.string().optional().describe('EAN barcode.'),
+  purchase_price: z.number().optional().describe('Purchase (cost) price.'),
 };
 
 const listProducts = defineTool({
