@@ -15,11 +15,31 @@ const cancelDocument = defineTool({
   scope: 'write',
   title: 'Cancel document (storno)',
   description:
-    'Issues a storno (cancellation) document that voids an existing invoice. The storno is reported to NAV and CANNOT be undone — if you storno the wrong invoice, the only remedy is to issue a fresh invoice with the same data. If only some details are wrong, prefer billingo_create_modification_document. Always confirm with the user first.',
-  inputSchema: { id: z.number().int().describe('Id of the document to cancel.') },
+    'Issues a storno (cancellation) document that voids an existing invoice. The storno is reported to NAV and CANNOT be undone — if you storno the wrong invoice, the only remedy is to issue a fresh invoice with the same data. If only some details are wrong, prefer billingo_create_modification_document. Billingo refuses to cancel an invoice that already has a modification document, and the modification document itself. Cancelling a paid invoice also clears its payment history. Always confirm with the user first.',
+  inputSchema: {
+    id: z.number().int().describe('Id of the document to cancel.'),
+    cancellation_reason: z
+      .string()
+      .optional()
+      .describe('Reason for the storno, sent to Billingo with the cancellation.'),
+    cancellation_recipients: z
+      .string()
+      .optional()
+      .describe('Email address(es) the cancellation document is sent to.'),
+  },
   annotations: destructive,
-  handler: async ({ id }, { client }) =>
-    jsonResult(await client.post(`/documents/${String(id)}/cancel`)),
+  // Per spec, POST /documents/{id}/cancel takes an optional DocumentCancellation body
+  // {cancellation_reason, cancellation_recipients}. Verified live 2026-10-14: an invoice
+  // with a modification document, and the modification itself, both answer
+  // 400 "Cannot cancel the document"; cancelling a paid invoice resets payment_status
+  // to "none".
+  handler: async ({ id, ...body }, { client }) =>
+    jsonResult(
+      await client.post(
+        `/documents/${String(id)}/cancel`,
+        Object.keys(body).length > 0 ? { body } : undefined,
+      ),
+    ),
 });
 
 const sendDocument = defineTool({

@@ -121,3 +121,41 @@ describe('billingo_delete_document and delete_payment', () => {
     expect(path).toBe('/v3/documents/50/payments');
   });
 });
+
+describe('billingo_cancel_document', () => {
+  it('posts without a body when no reason or recipients are given', async () => {
+    let body: string | null = 'unset';
+    server.use(
+      http.post('https://api.billingo.hu/v3/documents/:id/cancel', async ({ request }) => {
+        body = await request.text();
+        return HttpResponse.json({ id: 2, type: 'cancellation' });
+      }),
+    );
+    await byName('billingo_cancel_document').handler({ id: 1 }, ctx);
+    expect(body).toBe('');
+  });
+
+  it('sends cancellation_reason and cancellation_recipients as the DocumentCancellation body', async () => {
+    let body: unknown = null;
+    server.use(
+      http.post('https://api.billingo.hu/v3/documents/:id/cancel', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ id: 2, type: 'cancellation' });
+      }),
+    );
+    await byName('billingo_cancel_document').handler(
+      { id: 1, cancellation_reason: 'Duplicate', cancellation_recipients: 'a@example.com' },
+      ctx,
+    );
+    expect(body).toEqual({
+      cancellation_reason: 'Duplicate',
+      cancellation_recipients: 'a@example.com',
+    });
+  });
+
+  it('warns that modified invoices cannot be cancelled and that payments are cleared', () => {
+    const description = byName('billingo_cancel_document').description.toLowerCase();
+    expect(description).toContain('modification document');
+    expect(description).toContain('payment history');
+  });
+});
