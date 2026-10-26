@@ -9,7 +9,7 @@ import type { AnyToolDefinition } from '../../../src/tools/registry.js';
 
 const server = setupServer();
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
+  server.listen({ onUnhandledFrame: 'error' });
 });
 afterEach(() => {
   server.resetHandlers();
@@ -165,7 +165,7 @@ describe('billingo_export_documents', () => {
   });
 
   it('really waits between polls when sleep is not overridden, via the default setTimeout-based implementation', async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
     try {
       let polls = 0;
       server.use(
@@ -189,7 +189,12 @@ describe('billingo_export_documents', () => {
         { block_id: 1, start_date: '2026-01-01', end_date: '2026-01-31', format: 'simple_csv' },
         ctx,
       );
-      await vi.advanceTimersByTimeAsync(2000);
+      // MSW 3 resolves the mocked poll over real I/O, so the sleep may not be scheduled
+      // yet on the first advance; keep advancing until the second poll arrives.
+      await vi.waitFor(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(polls).toBe(2);
+      });
       const result = await promise;
       expect(polls).toBe(2);
       expect(result.content.some((c) => (c as { type: string }).type === 'resource')).toBe(true);
