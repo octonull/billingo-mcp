@@ -44,11 +44,27 @@ live('live: API behaviours the tools depend on', () => {
   const productIds: number[] = [];
   const bankAccountIds: number[] = [];
   const spendingIds: number[] = [];
+  /** Issued invoices still to cancel and drafts still to delete, cleaned up at teardown. */
+  const issuedIds = new Set<number>();
+  const draftIds = new Set<number>();
   let blockId = 0;
   let partnerId = 0;
 
-  const invoice = (extra: Record<string, unknown> = {}) =>
-    client.post<{ id: number; correction_type: string }>('/documents', {
+  /** Remembers a created document so teardown cleans it up even when a test fails. */
+  const track = (id: number, type: unknown = 'invoice') => {
+    (type === 'invoice' || type === 'advance' ? issuedIds : draftIds).add(id);
+  };
+  const cancel = async (id: number) => {
+    issuedIds.delete(id);
+    await client.post(`/documents/${String(id)}/cancel`).catch(() => undefined);
+  };
+  const remove = async (id: number) => {
+    draftIds.delete(id);
+    await client.delete(`/documents/${String(id)}`).catch(() => undefined);
+  };
+
+  const invoice = async (extra: Record<string, unknown> = {}) => {
+    const doc = await client.post<{ id: number; correction_type: string }>('/documents', {
       body: {
         partner_id: partnerId,
         block_id: blockId,
@@ -71,6 +87,9 @@ live('live: API behaviours the tools depend on', () => {
         ...extra,
       },
     });
+    track(doc.id, extra['type']);
+    return doc;
+  };
   const statusOf = (promise: Promise<unknown>) =>
     promise.then(
       () => 200,
@@ -88,6 +107,9 @@ live('live: API behaviours the tools depend on', () => {
   });
 
   afterAll(async () => {
+    // Newest first: a final invoice is cancelled before the advance invoice it settles.
+    for (const id of [...issuedIds].reverse()) await cancel(id);
+    for (const id of [...draftIds]) await remove(id);
     const del = (path: string) => client.delete(path).catch(() => undefined);
     for (const id of spendingIds) await del(`/spendings/${String(id)}`);
     for (const id of productIds) await del(`/products/${String(id)}`);
@@ -108,7 +130,7 @@ live('live: API behaviours the tools depend on', () => {
       body: [{ date: today, price: 500, payment_method: 'wire_transfer' }],
     });
     expect(await client.get<unknown[]>(path)).toHaveLength(1);
-    await client.post(`/documents/${String(doc.id)}/cancel`).catch(() => undefined);
+    await cancel(doc.id);
   });
 
   it('billingo_cancel_document: an invoice with a modification cannot be cancelled', async () => {
@@ -132,6 +154,8 @@ live('live: API behaviours the tools depend on', () => {
     );
     expect(await statusOf(client.post(`/documents/${String(doc.id)}/cancel`))).toBe(400);
     expect(await statusOf(client.post(`/documents/${String(modification.id)}/cancel`))).toBe(400);
+    // Confirmed uncancellable, so teardown has nothing to do for it.
+    issuedIds.delete(doc.id);
   });
 
   it('billingo_cancel_document: cancelling a paid invoice clears its payment status', async () => {
@@ -142,6 +166,7 @@ live('live: API behaviours the tools depend on', () => {
     await client.post(`/documents/${String(doc.id)}/cancel`, {
       body: { cancellation_reason: 'live behaviour check' },
     });
+    issuedIds.delete(doc.id);
     const after = await client.get<{ cancelled: boolean; payment_status: string }>(
       `/documents/${String(doc.id)}`,
     );
@@ -154,7 +179,7 @@ live('live: API behaviours the tools depend on', () => {
     expect(await statusOf(invoice({ vendor_id: vendorId }))).toBe(400);
     const found = await client.get<{ id: number }>(`/documents/vendor/${vendorId}`);
     expect(found.id).toBe(first.id);
-    await client.post(`/documents/${String(first.id)}/cancel`).catch(() => undefined);
+    await cancel(first.id);
   });
 
   it('billingo_list_documents: last_modified_date takes "YYYY-MM-DD HH:MM:SS" in Budapest time', async () => {
@@ -185,7 +210,7 @@ live('live: API behaviours the tools depend on', () => {
       body: [{ date: today, price: 1270, payment_method: 'wire_transfer' }],
     });
     expect(await ids(mark)).toContain(doc.id);
-    await client.post(`/documents/${String(doc.id)}/cancel`).catch(() => undefined);
+    await cancel(doc.id);
   });
 
   it('update tools: a partner PUT clears the optional fields it leaves out', async () => {
@@ -331,10 +356,11 @@ live('live: API behaviours the tools depend on', () => {
     const copy = await client.post<{ id: number; type: string; invoice_number: string }>(
       `/documents/${String(doc.id)}/copy`,
     );
+    track(copy.id, 'draft');
     expect(copy.type).toBe('draft');
     expect(copy.invoice_number).toBe('');
-    await client.delete(`/documents/${String(copy.id)}`).catch(() => undefined);
-    await client.post(`/documents/${String(doc.id)}/cancel`).catch(() => undefined);
+    await remove(copy.id);
+    await cancel(doc.id);
   });
 
   it('billingo_create_receipt: electronic is required and an invoice block is refused', async () => {
@@ -412,7 +438,8 @@ live('live: API behaviours the tools depend on', () => {
     });
     expect(await statusOf(client.post('/documents', { body: euBody(lower.id) }))).toBe(400);
     const issued = await client.post<{ id: number }>('/documents', { body: euBody(foreign.id) });
-    await client.post(`/documents/${String(issued.id)}/cancel`).catch(() => undefined);
+    track(issued.id);
+    await cancel(issued.id);
   });
 
   it('billingo_copy_document: a proforma and a draft copy are drafts too', async () => {
@@ -421,9 +448,10 @@ live('live: API behaviours the tools depend on', () => {
       const copy = await client.post<{ id: number; type: string }>(
         `/documents/${String(source.id)}/copy`,
       );
+      track(copy.id, 'draft');
       expect(copy.type, type).toBe('draft');
-      await client.delete(`/documents/${String(copy.id)}`).catch(() => undefined);
-      await client.delete(`/documents/${String(source.id)}`).catch(() => undefined);
+      await remove(copy.id);
+      await remove(source.id);
     }
   });
 
@@ -617,9 +645,10 @@ live('live: API behaviours the tools depend on', () => {
         },
       },
     );
+    track(final.id);
     expect(final.related_documents.map((d) => d.id)).toContain(advance.id);
     for (const id of [printed.id, final.id, advance.id]) {
-      await client.post(`/documents/${String(id)}/cancel`).catch(() => undefined);
+      await cancel(id);
     }
   });
 
@@ -672,6 +701,6 @@ live('live: API behaviours the tools depend on', () => {
     }
     expect(checked.length).toBeGreaterThanOrEqual(16);
     await mcp.close();
-    await client.post(`/documents/${String(doc.id)}/cancel`).catch(() => undefined);
+    await cancel(doc.id);
   });
 });
