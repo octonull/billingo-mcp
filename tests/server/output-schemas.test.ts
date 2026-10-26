@@ -26,7 +26,7 @@ const fixture = (name: string): { status: number; body: unknown } =>
 const BASE = 'https://api.billingo.hu/v3';
 const api = setupServer();
 beforeAll(() => {
-  api.listen({ onUnhandledRequest: 'error' });
+  api.listen({ onUnhandledFrame: 'error' });
 });
 afterEach(() => {
   api.resetHandlers();
