@@ -10,7 +10,7 @@ import { allTools } from '../../src/tools/index.js';
 
 const api = setupServer();
 beforeAll(() => {
-  api.listen({ onUnhandledRequest: 'error' });
+  api.listen({ onUnhandledFrame: 'error' });
 });
 afterEach(() => {
   api.resetHandlers();
@@ -138,7 +138,7 @@ describe('scope filtering over a real MCP connection', () => {
   });
 
   it('rejects invalid arguments before any API call is made', async () => {
-    // No MSW handler registered: if a request escapes, onUnhandledRequest:'error' fails the test.
+    // No MSW handler registered: if a request escapes, onUnhandledFrame:'error' fails the test.
     const { client } = await connect(false);
     const result = await client.callTool({
       name: 'billingo_get_partner',

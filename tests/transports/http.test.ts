@@ -8,7 +8,7 @@ import { createHandler } from '../../src/transports/http.js';
 
 const api = setupServer();
 beforeAll(() => {
-  api.listen({ onUnhandledRequest: 'bypass' });
+  api.listen({ onUnhandledFrame: 'bypass' });
 });
 afterEach(() => {
   api.resetHandlers();
@@ -218,7 +218,8 @@ describe('HTTP transport', () => {
     await withServer(async (call) => {
       for (const key of ['tenant-a', 'tenant-b']) {
         await call({ 'X-Billingo-Api-Key': key }, initialize);
-        await call(
+        // Drain the SSE body: the response resolves on headers, before the tool runs.
+        const response = await call(
           { 'X-Billingo-Api-Key': key },
           {
             jsonrpc: '2.0',
@@ -227,6 +228,7 @@ describe('HTTP transport', () => {
             params: { name: 'billingo_get_organization', arguments: {} },
           },
         );
+        await response.text();
       }
       expect(keysSeen).toEqual(['tenant-a', 'tenant-b']);
     });

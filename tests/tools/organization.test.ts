@@ -13,7 +13,7 @@ const server = setupServer();
 // early would bypass MSW's interception and leak real requests to api.billingo.hu.
 let ctx: { client: BillingoClient };
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
+  server.listen({ onUnhandledFrame: 'error' });
   ctx = { client: new BillingoClient({ apiKey: 'k', sleep: async () => {} }) };
 });
 afterEach(() => {
