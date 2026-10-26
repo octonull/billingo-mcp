@@ -394,6 +394,24 @@ describe('update tools change only the fields they are given', () => {
       expect(seen.body).not.toHaveProperty('gross_unit_price');
     });
 
+    it('is not idempotent: repeating a call that echoes one price can undo the other', async () => {
+      const update = byName('billingo_update_product');
+      expect(update.annotations.idempotentHint).toBe(false);
+      // After {net 2000, gross 1270} has been applied, the stored gross price is 2540, so
+      // the same call now reads as a gross change and would restore net 1000.
+      const seen = storedRecord('/products/3', {
+        ...stored,
+        net_unit_price: 2000,
+        gross_unit_price: 2540,
+      });
+      await call('billingo_update_product', {
+        id: 3,
+        net_unit_price: 2000,
+        gross_unit_price: 1270,
+      });
+      expect(seen.body).toMatchObject({ gross_unit_price: 1270 });
+    });
+
     it('refuses two changed prices instead of dropping one', async () => {
       const seen = storedRecord('/products/3', stored);
       await expect(

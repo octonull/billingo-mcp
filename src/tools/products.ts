@@ -166,10 +166,14 @@ const updateProduct = defineTool({
     ...patchShape(productFields),
   },
   // destructiveHint: true because the given fields overwrite the stored values.
+  // idempotentHint: false because onePrice picks the price by comparing with the stored
+  // record: {net 2000, gross 1270} on a 1000/1270 product sends the net price, but sent
+  // again after that PUT (e.g. a retry after a 5xx) it sends the now-changed gross price
+  // and restores net 1000. A 5xx therefore reports outcome_unknown, not a safe retry.
   annotations: {
     readOnlyHint: false,
     destructiveHint: true,
-    idempotentHint: true,
+    idempotentHint: false,
     openWorldHint: true,
   },
   handler: async ({ id, ...patch }, { client }) =>
