@@ -137,8 +137,9 @@ const TOTALS = [
  * Billingo stores each total and its HUF equivalent exactly as sent and does not convert
  * (verified live 2026-10-14: a HUF spending updated to total_gross 25400 kept
  * total_gross_huf 12700). So a changed amount must not travel with the stale HUF value
- * read a moment earlier. In HUF the HUF fields mirror the totals and the rate is 1,
- * unless the caller gives them. In another currency the tool cannot know the rate the
+ * read a moment earlier. In HUF a changed total (or a switch to HUF) carries its HUF
+ * field along and a switch sets the rate to 1, unless the caller gives them; unrelated
+ * updates keep the stored values. In another currency the tool cannot know the rate the
  * caller meant, so a changed total, currency or rate without its HUF values is refused.
  */
 function consistentTotals(
@@ -150,8 +151,18 @@ function consistentTotals(
   const changed = (key: string) => given(key) && patch[key] !== current[key];
   const out = { ...body };
   if (out['currency'] === 'HUF') {
-    if (!given('conversion_rate')) out['conversion_rate'] = 1;
-    for (const [total, huf] of TOTALS) if (!given(huf)) out[huf] = out[total];
+    // Only what the caller changed moves: a stored rate or HUF amount that differs from
+    // the totals is kept on an unrelated update (Billingo permits and keeps such values).
+    // A missing one is filled, since the API requires it.
+    const toHuf = changed('currency');
+    if (!given('conversion_rate') && (toHuf || out['conversion_rate'] === undefined)) {
+      out['conversion_rate'] = 1;
+    }
+    for (const [total, huf] of TOTALS) {
+      if (!given(huf) && (toHuf || changed(total) || out[huf] === undefined)) {
+        out[huf] = out[total];
+      }
+    }
     return out;
   }
   const basisChanged = changed('currency') || changed('conversion_rate');

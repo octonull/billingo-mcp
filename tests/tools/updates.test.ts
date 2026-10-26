@@ -370,6 +370,32 @@ describe('update tools change only the fields they are given', () => {
       await call('billingo_update_spending', { id: 11, comment: 'x' });
       expect(seen.body).toMatchObject({ total_gross_huf: 40000, total_vat_amount_huf: 8400 });
     });
+
+    it('in HUF an unrelated change keeps a stored HUF amount and rate that differ from the totals', async () => {
+      const seen = storedRecord('/spendings/11', {
+        ...huf,
+        conversion_rate: 1.5,
+        total_gross: 25400,
+        total_gross_local: 12700,
+      });
+      await call('billingo_update_spending', { id: 11, comment: 'x' });
+      expect(seen.body).toMatchObject({
+        comment: 'x',
+        conversion_rate: 1.5,
+        total_gross: 25400,
+        total_gross_huf: 12700,
+      });
+    });
+
+    it('in HUF fills a rate and HUF amounts the stored record lacks, since the API requires them', async () => {
+      const seen = storedRecord('/spendings/11', {
+        ...huf,
+        conversion_rate: null,
+        total_vat_amount_local: null,
+      });
+      await call('billingo_update_spending', { id: 11, comment: 'x' });
+      expect(seen.body).toMatchObject({ conversion_rate: 1, total_vat_amount_huf: 2700 });
+    });
   });
 
   describe('update_product price rule', () => {
