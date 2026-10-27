@@ -234,3 +234,102 @@ describe('HTTP transport', () => {
     });
   });
 });
+
+describe('HTTP transport tool categories', () => {
+  /** POSTs one JSON-RPC message to a fresh server and returns the response. */
+  async function post(
+    path: string,
+    headers: Record<string, string>,
+    body: unknown,
+  ): Promise<Response> {
+    const handler = createHandler({
+      baseUrl: 'https://api.billingo.hu/v3',
+      port: 0,
+      allowedHosts: undefined,
+      commitSha: undefined,
+      buildVersion: undefined,
+    });
+    const node = createHttpServer((req, res) => {
+      void handler(req, res);
+    });
+    await new Promise<void>((resolve) => node.listen(0, resolve));
+    const { port } = node.address() as AddressInfo;
+    try {
+      return await fetch(`http://127.0.0.1:${String(port)}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json, text/event-stream',
+          'X-Billingo-Api-Key': 'k',
+          ...headers,
+        },
+        body: JSON.stringify(body),
+      });
+    } finally {
+      await new Promise<void>((resolve) =>
+        node.close(() => {
+          resolve();
+        }),
+      );
+    }
+  }
+
+  const toolsList = { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} };
+
+  /** Tool names from a tools/list answer, which may come back as JSON or as one SSE event. */
+  async function toolNames(response: Response): Promise<string[]> {
+    const text = await response.text();
+    const json = text.startsWith('{') ? text : (/^data: (.*)$/m.exec(text)?.[1] ?? '{}');
+    const parsed = JSON.parse(json) as { result?: { tools?: { name: string }[] } };
+    return (parsed.result?.tools ?? []).map((t) => t.name);
+  }
+
+  it('loads only the groups named in the header', async () => {
+    const names = await toolNames(
+      await post('/mcp', { 'X-Billingo-Tool-Categories': 'partners' }, toolsList),
+    );
+    expect(names.sort()).toEqual(['billingo_get_partner', 'billingo_list_partners']);
+  });
+
+  it('loads only the groups named in the query string', async () => {
+    const names = await toolNames(await post('/mcp?categories=partners', {}, toolsList));
+    expect(names.sort()).toEqual(['billingo_get_partner', 'billingo_list_partners']);
+  });
+
+  it('lets the header win over the query, and falls back to the query when the header is empty', async () => {
+    const both = await toolNames(
+      await post(
+        '/mcp?categories=partners',
+        { 'X-Billingo-Tool-Categories': 'organization' },
+        toolsList,
+      ),
+    );
+    expect(both.every((n) => !n.includes('partner'))).toBe(true);
+    expect(both).toContain('billingo_get_organization');
+    const emptyHeader = await toolNames(
+      await post('/mcp?categories=partners', { 'X-Billingo-Tool-Categories': '' }, toolsList),
+    );
+    expect(emptyHeader.sort()).toEqual(['billingo_get_partner', 'billingo_list_partners']);
+  });
+
+  it('never widens the write scope: a category does not list write tools', async () => {
+    const names = await toolNames(
+      await post('/mcp', { 'X-Billingo-Tool-Categories': 'partners' }, toolsList),
+    );
+    expect(names).not.toContain('billingo_create_partner');
+  });
+
+  it('lists every read tool without a category, as before', async () => {
+    expect(await toolNames(await post('/mcp', {}, toolsList))).toHaveLength(22);
+  });
+
+  it('rejects an unknown category with a 400 that lists the valid ones', async () => {
+    for (const response of [
+      await post('/mcp', { 'X-Billingo-Tool-Categories': 'invoices' }, initialize),
+      await post('/mcp?categories=invoices', {}, initialize),
+    ]) {
+      expect(response.status).toBe(400);
+      expect(await response.text()).toContain('Valid: organization');
+    }
+  });
+});

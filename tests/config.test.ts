@@ -26,7 +26,22 @@ describe('loadStdioConfig', () => {
       apiKey: 'abc',
       baseUrl: 'https://api.billingo.hu/v3',
       allowWrite: false,
+      categories: undefined,
     });
+  });
+
+  it('reads BILLINGO_TOOL_CATEGORIES as a list of tool groups', () => {
+    const config = loadStdioConfig({
+      BILLINGO_API_KEY: 'abc',
+      BILLINGO_TOOL_CATEGORIES: 'documents,partners',
+    });
+    expect(config.categories).toEqual(['documents', 'partners']);
+  });
+
+  it('names the variable when a tool category is unknown', () => {
+    expect(() =>
+      loadStdioConfig({ BILLINGO_API_KEY: 'abc', BILLINGO_TOOL_CATEGORIES: 'invoices' }),
+    ).toThrow(/BILLINGO_TOOL_CATEGORIES: Unknown tool category: invoices/);
   });
 
   it('enables writes only on an explicit opt-in', () => {

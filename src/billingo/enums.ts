@@ -237,3 +237,20 @@ export const CATEGORIES = [
   'water',
 ] as const;
 export const categorySchema = z.enum(CATEGORIES);
+
+/**
+ * Per spec components.schemas.DocumentLanguage.enum. The brief guessed
+ * ['hu','en','de','fr','it','hr','ro','sk','es','cz','pl'] — wrong on both ends: "es",
+ * "cz" and "pl" do not exist, and "us" (present in the real enum) was missing.
+ */
+export const documentLanguageSchema = z.enum([
+  'de',
+  'en',
+  'fr',
+  'hr',
+  'hu',
+  'it',
+  'ro',
+  'sk',
+  'us',
+]);

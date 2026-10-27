@@ -129,32 +129,6 @@ describe('billingo_create_product', () => {
   });
 });
 
-describe('billingo_update_product', () => {
-  const fullUpdate = { id: 3, name: 'Widget v2', currency: 'HUF', vat: '27%', unit: 'db' } as const;
-
-  it('puts the full record to /products/{id} without the id in the body', async () => {
-    let path = '';
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.put('https://api.billingo.hu/v3/products/:id', async ({ request }) => {
-        path = new URL(request.url).pathname;
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 3 });
-      }),
-    );
-    await byName('billingo_update_product').handler(fullUpdate, ctx);
-    expect(path).toBe('/v3/products/3');
-    expect(body).toEqual({ name: 'Widget v2', currency: 'HUF', vat: '27%', unit: 'db' });
-  });
-
-  it('rejects a body missing currency, vat or unit — PUT is a full replace, not a patch', () => {
-    const schema = z.object(byName('billingo_update_product').inputSchema);
-    expect(() => schema.parse({ id: 3, name: 'Widget v2' })).toThrow();
-    expect(() => schema.parse({ id: 3, name: 'Widget v2', currency: 'HUF', vat: '27%' })).toThrow();
-    expect(schema.parse(fullUpdate)).toMatchObject({ name: 'Widget v2' });
-  });
-});
-
 describe('billingo_delete_product', () => {
   it('is registered, write-scoped and marked destructive', () => {
     const tool = byName('billingo_delete_product');

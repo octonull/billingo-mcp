@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "body": {
+    "sent_reminders": [],
+    "upcoming_reminders": [],
+    "sent_postal_mail": []
+  }
+}

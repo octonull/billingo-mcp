@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "tax_code": "12345678-2-42",
+    "subscription": {
+      "expiration_date": "2026-10-15",
+      "features": []
+    },
+    "has_nav_connection": false,
+    "kobak_receipt_fs_enabled": true,
+    "has_successful_nav_receipt_submission": false
+  }
+}

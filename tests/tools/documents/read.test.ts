@@ -413,3 +413,43 @@ describe('billingo_pos_print', () => {
     });
   });
 });
+
+describe('billingo_list_documents date filters', () => {
+  it('forwards the payment-date, fulfillment-date and last-modified filters as query params', async () => {
+    let query = new URLSearchParams();
+    server.use(
+      http.get('https://api.billingo.hu/v3/documents', ({ request }) => {
+        query = new URL(request.url).searchParams;
+        return HttpResponse.json({
+          data: [],
+          total: 0,
+          per_page: 25,
+          current_page: 1,
+          last_page: 1,
+        });
+      }),
+    );
+    await byName('billingo_list_documents').handler(
+      {
+        paid_start_date: '2026-10-01',
+        paid_end_date: '2026-10-14',
+        fulfillment_start_date: '2026-09-01',
+        fulfillment_end_date: '2026-09-30',
+        last_modified_date: '2026-10-14 11:46:47',
+      },
+      ctx,
+    );
+    expect(query.get('paid_start_date')).toBe('2026-10-01');
+    expect(query.get('paid_end_date')).toBe('2026-10-14');
+    expect(query.get('fulfillment_start_date')).toBe('2026-09-01');
+    expect(query.get('fulfillment_end_date')).toBe('2026-09-30');
+    expect(query.get('last_modified_date')).toBe('2026-10-14 11:46:47');
+  });
+
+  it('accepts only "YYYY-MM-DD HH:MM:SS" for last_modified_date — the API 422s on other forms', () => {
+    const schema = z.object(byName('billingo_list_documents').inputSchema);
+    expect(schema.safeParse({ last_modified_date: '2026-10-14 11:46:47' }).success).toBe(true);
+    expect(schema.safeParse({ last_modified_date: '2026-10-14' }).success).toBe(false);
+    expect(schema.safeParse({ last_modified_date: '2026-10-14T11:46:47' }).success).toBe(false);
+  });
+});

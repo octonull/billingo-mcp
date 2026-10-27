@@ -65,6 +65,33 @@ describe('document write tool surface', () => {
 });
 
 describe('billingo_create_document', () => {
+  it('passes bank_account_id and advance_invoice through to the API', async () => {
+    let body: Record<string, unknown> = {};
+    server.use(
+      http.post('https://api.billingo.hu/v3/documents', async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 1 });
+      }),
+    );
+    const args = z.object(byName('billingo_create_document').inputSchema).parse({
+      partner_id: 1,
+      block_id: 1,
+      type: 'invoice',
+      fulfillment_date: '2026-10-14',
+      due_date: '2026-10-14',
+      payment_method: 'wire_transfer',
+      language: 'hu',
+      currency: 'HUF',
+      bank_account_id: 285666,
+      advance_invoice: [139017042],
+      items: [
+        { name: 'x', unit_price: 1, unit_price_type: 'net', quantity: 1, unit: 'db', vat: '27%' },
+      ],
+    });
+    await byName('billingo_create_document').handler(args, ctx);
+    expect(body).toMatchObject({ bank_account_id: 285666, advance_invoice: [139017042] });
+  });
+
   it('posts the document and returns it', async () => {
     let body: unknown = null;
     server.use(
@@ -206,7 +233,13 @@ describe('billingo_create_receipt', () => {
     // different, smaller enum than components.schemas.Vat used by document items.
     // "9%" is a valid Vat value but not a valid ReceiptVat value.
     const schema = z.object(byName('billingo_create_receipt').inputSchema);
-    const base = { block_id: 1, type: 'receipt', payment_method: 'cash', currency: 'HUF' };
+    const base = {
+      block_id: 1,
+      type: 'receipt',
+      payment_method: 'cash',
+      currency: 'HUF',
+      electronic: false,
+    };
     expect(() => schema.parse({ ...base, items: [{ unit_price: 1, vat: '9%' }] })).toThrow();
     expect(schema.parse({ ...base, items: [{ unit_price: 1, vat: '27%' }] }).items).toEqual([
       { unit_price: 1, vat: '27%' },
@@ -220,9 +253,36 @@ describe('billingo_create_receipt', () => {
       type: 'receipt',
       payment_method: 'cash',
       currency: 'HUF',
+      electronic: false,
       items: [{ product_id: 4 }],
     });
     expect(parsed.items).toEqual([{ product_id: 4 }]);
+  });
+
+  it('requires `electronic` — the live API 422s on a receipt without it', () => {
+    const schema = z.object(byName('billingo_create_receipt').inputSchema);
+    const receipt = {
+      block_id: 1,
+      type: 'receipt',
+      payment_method: 'cash',
+      currency: 'HUF',
+      items: [{ unit_price: 1, vat: '27%' }],
+    };
+    expect(schema.safeParse(receipt).success).toBe(false);
+    expect(schema.safeParse({ ...receipt, electronic: false }).success).toBe(true);
+  });
+
+  it('says a receipt needs a receipt-type document block', () => {
+    expect(byName('billingo_create_receipt').description).toContain('"receipt"');
+  });
+});
+
+describe('billingo_copy_document description', () => {
+  it('says the copy is a draft to finalize, not an issued document', () => {
+    const description = byName('billingo_copy_document').description;
+    expect(description).toContain('draft');
+    expect(description).toContain('billingo_finalize_draft');
+    expect(description).not.toContain('issued immediately');
   });
 });
 
@@ -421,6 +481,13 @@ describe('billingo_update_payment', () => {
       ctx,
     );
     expect(body).toEqual([{ payment_method: 'wire_transfer', date: '2026-01-20', price: 12700 }]);
+  });
+
+  it('is marked destructive and says omitted payments are deleted — the PUT is a full replace', () => {
+    const tool = byName('billingo_update_payment');
+    expect(tool.annotations.destructiveHint).toBe(true);
+    expect(tool.description).toContain('billingo_get_document_payments');
+    expect(tool.description.toLowerCase()).toContain('deleted');
   });
 });
 

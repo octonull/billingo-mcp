@@ -150,11 +150,15 @@ const exportDocuments = defineTool({
     if (status === undefined || status.state === 'pending' || status.state === 'processing') {
       return errorResult(
         `The export ${created.id} is still running after ${String(maxPolls)} checks. It was not abandoned — retry billingo_export_documents later, or ask Billingo support about export ${created.id}.`,
+        { code: 'export_pending', retryable: true },
       );
     }
 
     if (status.state === 'fail') {
-      return errorResult(`Export ${created.id} failed. ${status.message ?? ''}`.trim());
+      return errorResult(`Export ${created.id} failed. ${status.message ?? ''}`.trim(), {
+        code: 'export_failed',
+        retryable: false,
+      });
     }
 
     const { data, contentType } = await client.getBinary(`/document-export/${created.id}/download`);

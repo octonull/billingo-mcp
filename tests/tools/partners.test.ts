@@ -106,6 +106,52 @@ describe('billingo_get_partner', () => {
 });
 
 describe('billingo_create_partner', () => {
+  it('carries iban, swift, internal_comment, giro_settings and the real custom billing fields', () => {
+    const schema = z.object(byName('billingo_create_partner').inputSchema);
+    const parsed = schema.parse({
+      name: 'Example Kft.',
+      address: {
+        country_code: 'HU',
+        post_code: '1011',
+        city: 'Budapest',
+        address: 'Példa utca 1.',
+      },
+      iban: 'HU42117730161111101800000000',
+      swift: 'OTPVHUHB',
+      internal_comment: 'note',
+      giro_settings: { giro_payment_request_enabled: true },
+      custom_billing_settings: { due_days: 15, payment_method: 'cash', document_currency: 'EUR' },
+      default_currency: 'EUR',
+    });
+    expect(parsed).toMatchObject({ iban: 'HU42117730161111101800000000', swift: 'OTPVHUHB' });
+    expect(parsed.custom_billing_settings).toEqual({
+      due_days: 15,
+      payment_method: 'cash',
+      document_currency: 'EUR',
+    });
+    // The fields Billingo ignored are no longer part of the schema, so they are not sent.
+    expect(parsed).not.toHaveProperty('default_currency');
+  });
+
+  it('takes the API tax_type values — the lowercase ones were silently stored as unset', () => {
+    const schema = z.object(byName('billingo_create_partner').inputSchema);
+    const base = {
+      name: 'Example GmbH',
+      address: {
+        country_code: 'DE',
+        post_code: '10115',
+        city: 'Berlin',
+        address: 'Beispielstraße 1',
+      },
+    };
+    for (const taxType of ['FOREIGN', 'HAS_TAX_NUMBER', 'NO_TAX_NUMBER']) {
+      expect(schema.safeParse({ ...base, tax_type: taxType }).success, taxType).toBe(true);
+    }
+    for (const taxType of ['none', 'has_tax_number', 'no_tax_number', 'foreign']) {
+      expect(schema.safeParse({ ...base, tax_type: taxType }).success, taxType).toBe(false);
+    }
+  });
+
   it('posts the partner and returns the created record', async () => {
     let body: unknown = null;
     server.use(
@@ -135,48 +181,6 @@ describe('billingo_create_partner', () => {
   it('rejects a malformed email before calling the API', () => {
     const schema = z.object(byName('billingo_create_partner').inputSchema);
     expect(() => schema.parse({ name: 'A', emails: ['not-an-email'] })).toThrow();
-  });
-});
-
-describe('billingo_update_partner', () => {
-  const fullUpdate = {
-    id: 42,
-    name: 'New name',
-    address: { country_code: 'HU', post_code: '1011', city: 'Budapest', address: 'Fő utca 1.' },
-  };
-
-  it('puts the full record to /partners/{id}', async () => {
-    let path = '';
-    let body: unknown = null;
-    server.use(
-      http.put('https://api.billingo.hu/v3/partners/:id', async ({ request }) => {
-        path = new URL(request.url).pathname;
-        body = await request.json();
-        return HttpResponse.json({ id: 42, name: 'New name' });
-      }),
-    );
-    await byName('billingo_update_partner').handler(fullUpdate, ctx);
-    expect(path).toBe('/v3/partners/42');
-    expect(body).toMatchObject({ name: 'New name', address: fullUpdate.address });
-  });
-
-  it('does not send the id in the body', async () => {
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.put('https://api.billingo.hu/v3/partners/:id', async ({ request }) => {
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 42 });
-      }),
-    );
-    await byName('billingo_update_partner').handler(fullUpdate, ctx);
-    expect(body['id']).toBeUndefined();
-  });
-
-  it('rejects a body missing the now-required address — PUT is a full replace, not a patch', () => {
-    const schema = z.object(byName('billingo_update_partner').inputSchema);
-    expect(() => schema.parse({ id: 42, name: 'New name' })).toThrow();
-    expect(() => schema.parse({ id: 42, address: fullUpdate.address })).toThrow();
-    expect(schema.parse(fullUpdate)).toMatchObject({ name: 'New name' });
   });
 });
 

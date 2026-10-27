@@ -1,8 +1,10 @@
 // src/tools/partners.ts
 import { z } from 'zod';
-import { currencySchema, paymentMethodSchema } from '../billingo/enums.js';
+import { paginatedSchema, partnerSchema } from '../billingo/schemas.js';
+import { currencySchema, documentLanguageSchema, paymentMethodSchema } from '../billingo/enums.js';
 import { pageParamsShape, summarizePage } from '../billingo/pagination.js';
 import type { Paginated } from '../billingo/pagination.js';
+import { patchDescription, patchRecord, patchShape } from './merge.js';
 import { defineTool, jsonResult } from './registry.js';
 import type { AnyToolDefinition } from './registry.js';
 
@@ -18,32 +20,65 @@ import type { AnyToolDefinition } from './registry.js';
  */
 const addressSchema = z.object({
   country_code: z.string().length(2).describe('ISO 3166-1 alpha-2 country code, e.g. "HU".'),
-  post_code: z.string().min(1).describe('Postal code. Required.'),
-  city: z.string().min(1).describe('City. Required.'),
-  address: z.string().min(1).describe('Street address. Required.'),
+  post_code: z.string().min(1).describe('Postal code.'),
+  city: z.string().min(1).describe('City.'),
+  address: z.string().min(1).describe('Street address.'),
 });
 
 /**
- * Fields shared by create and update. PUT /partners/{id} is a full replace, not a patch —
- * verified live 2026-07-17, where {"name":"renamed"} 422s with address.post_code,
- * address.city and address.address all "required". So create and update share the exact
- * same required set (name, address); only the genuinely optional attributes stay optional.
+ * Fields shared by create and update. Create needs name and a complete address (verified
+ * live 2026-07-17: {"name":"renamed"} 422s with address.post_code, address.city and
+ * address.address all "required"). Update takes any subset of them: the tool reads the
+ * partner and fills in the rest, because PUT /partners/{id} is a full replace.
  */
 const partnerFields = {
   name: z.string().min(1).describe('Partner (company or person) name.'),
-  address: addressSchema.describe(
-    'Full address. Required — PUT replaces the whole partner, so this must be sent on every update too, not just on create.',
-  ),
+  address: addressSchema.describe('Full address. On update, give only the parts that change.'),
   emails: z.array(z.email()).optional().describe('Email addresses invoices are sent to.'),
   taxcode: z.string().optional().describe('Tax number.'),
   group_member_tax_number: z.string().optional(),
-  tax_type: z.enum(['none', 'has_tax_number', 'no_tax_number']).optional(),
+  // Per spec components.schemas.PartnerTaxType: '', FOREIGN, HAS_TAX_NUMBER, NO_TAX_NUMBER.
+  // Verified live 2026-10-14: the lowercase values the tool used to accept ('none',
+  // 'has_tax_number', 'no_tax_number') return 201 but are stored as '' (not set), and
+  // without FOREIGN an EU (VAT "EU") invoice is refused: "the customer type must be set
+  // to 'Foreign'". With FOREIGN the same EU invoice is issued.
+  tax_type: z
+    .enum(['', 'FOREIGN', 'HAS_TAX_NUMBER', 'NO_TAX_NUMBER'])
+    .optional()
+    .describe(
+      'Customer type: HAS_TAX_NUMBER for a Hungarian business with a tax number, NO_TAX_NUMBER for a private person, FOREIGN for a buyer outside Hungary, "" for not set (what Billingo returns for a partner without one). EU (VAT "EU") invoices need FOREIGN and the EU VAT number in taxcode.',
+    ),
   phone: z.string().optional(),
   account_number: z.string().optional(),
+  // Verified live 2026-10-14: a partner PUT that leaves out iban, swift and
+  // internal_comment clears them and resets giro_settings to its defaults. The update
+  // tool keeps them by reading the partner first (src/tools/merge.ts); these fields let a
+  // caller set and change them.
+  iban: z.string().optional(),
+  swift: z.string().optional(),
+  internal_comment: z.string().optional().describe('Internal note, not printed on invoices.'),
+  giro_settings: z
+    .object({
+      giro_default_settings: z.boolean().optional(),
+      giro_payment_request_enabled: z.boolean().optional(),
+      giro_different_amount_allowed: z.boolean().optional(),
+    })
+    .optional()
+    .describe('GIRO direct-debit settings (components.schemas.PartnerGiroSettings).'),
   general_ledger_number: z.string().optional(),
-  default_currency: currencySchema.optional(),
-  default_payment_method: paymentMethodSchema.optional(),
-  custom_billing_settings: z.object({ payment_days: z.number().int().optional() }).optional(),
+  // Per spec components.schemas.PartnerCustomBillingSettings. Verified live 2026-10-14:
+  // the fields the tool used to offer (default_currency, default_payment_method and
+  // custom_billing_settings.payment_days) return 201 but are stored as null; due_days,
+  // payment_method and document_currency inside custom_billing_settings are stored.
+  custom_billing_settings: z
+    .object({
+      due_days: z.number().int().optional().describe('Default payment term in days.'),
+      payment_method: paymentMethodSchema.optional(),
+      document_currency: currencySchema.optional(),
+      template_language_code: documentLanguageSchema.optional(),
+    })
+    .optional()
+    .describe("Defaults Billingo applies to this partner's new documents."),
 };
 
 const listPartners = defineTool({
@@ -56,6 +91,7 @@ const listPartners = defineTool({
     ...pageParamsShape,
     query: z.string().optional().describe('Free-text search over the partner name.'),
   },
+  outputSchema: paginatedSchema(partnerSchema),
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ page, per_page, query }, { client }) => {
     const result = await client.get<Paginated<unknown>>('/partners', {
@@ -71,6 +107,7 @@ const getPartner = defineTool({
   title: 'Get partner',
   description: 'Returns a single partner by id.',
   inputSchema: { id: z.number().int().describe('Partner id.') },
+  outputSchema: partnerSchema,
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   handler: async ({ id }, { client }) => jsonResult(await client.get(`/partners/${String(id)}`)),
 });
@@ -91,24 +128,55 @@ const createPartner = defineTool({
   handler: async (args, { client }) => jsonResult(await client.post('/partners', { body: args })),
 });
 
+/** Writable fields of components.schemas.Partner, the body PUT /partners/{id} takes. */
+const PARTNER_WRITABLE = [
+  'name',
+  'address',
+  'emails',
+  'taxcode',
+  'iban',
+  'swift',
+  'account_number',
+  'phone',
+  'general_ledger_number',
+  'tax_type',
+  'custom_billing_settings',
+  'group_member_tax_number',
+  'giro_settings',
+  'partner_shipping',
+  'internal_comment',
+  'partner_show_type',
+] as const;
+
 const updatePartner = defineTool({
   name: 'billingo_update_partner',
   scope: 'write',
   title: 'Update partner',
-  description:
-    'Replaces an existing partner. PUT is a full update, not a patch: the API re-validates the entire required field set (name and a complete address) on every call, even for attributes you are not changing — sending only the changed fields (e.g. just { name }) will fail with a 422. To update safely: call billingo_get_partner first, merge your changes into the full record, and send that complete result here.',
+  description: patchDescription('partner'),
   inputSchema: {
     id: z.number().int().describe('Partner id.'),
-    ...partnerFields,
+    ...patchShape({
+      ...partnerFields,
+      address: addressSchema
+        .partial()
+        .describe('Only the parts that change; the rest of the stored address is kept.'),
+    }),
   },
+  // destructiveHint: true because the given fields overwrite the stored values.
   annotations: {
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: true,
     openWorldHint: true,
   },
-  handler: async ({ id, ...body }, { client }) =>
-    jsonResult(await client.put(`/partners/${String(id)}`, { body })),
+  handler: async ({ id, ...patch }, { client }) =>
+    jsonResult(
+      await patchRecord(
+        client,
+        { path: `/partners/${String(id)}`, writable: PARTNER_WRITABLE },
+        patch,
+      ),
+    ),
 });
 
 const guessPartner = defineTool({

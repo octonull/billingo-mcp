@@ -1,6 +1,18 @@
 // src/tools/documents/read.ts
 import { z } from 'zod';
-import { BillingoPdfNotReadyError, PDF_NOT_READY_STATUS } from '../../billingo/errors.js';
+import {
+  documentSchema,
+  onlineSzamlaStatusSchema,
+  paginatedSchema,
+  paymentsResultSchema,
+  publicUrlSchema,
+  remindersSchema,
+} from '../../billingo/schemas.js';
+import {
+  BillingoPdfNotReadyError,
+  describeError,
+  PDF_NOT_READY_STATUS,
+} from '../../billingo/errors.js';
 import { paymentMethodSchema } from '../../billingo/enums.js';
 import { isoDate } from '../../billingo/dates.js';
 import { pageParamsShape, summarizePage } from '../../billingo/pagination.js';
@@ -26,17 +38,16 @@ const readOnly = { readOnlyHint: true, idempotentHint: true, openWorldHint: true
  * `$ref`), confirming why paymentMethodSchema is a declared dependency.
  *
  * `start_date`/`end_date` filter by invoice date, not fulfillment date — the API has a
- * separate `fulfillment_start_date`/`fulfillment_end_date` pair for that. Along with
- * `paid_start_date`/`paid_end_date`, `start_number`/`end_number`/`start_year`/`end_year`,
- * and `last_modified_date`, those are left out here to match the brief's scoped filter
- * set; they exist in the spec if a future task wants them.
+ * separate `fulfillment_start_date`/`fulfillment_end_date` pair for that. The payment-date
+ * pair and `last_modified_date` are exposed below; `start_number`/`end_number`/
+ * `start_year`/`end_year` are still left out.
  */
 const listDocuments = defineTool({
   name: 'billingo_list_documents',
   scope: 'read',
   title: 'List documents',
   description:
-    'Lists documents (invoices, receipts, proformas, drafts and more), newest first. Filter by type, invoice date range, partner, payment status/method or document block.',
+    'Lists documents (invoices, receipts, proformas, drafts and more), newest first. Filter by type, invoice date range, fulfillment date range, payment date range, last modification time, partner, payment status/method or document block.',
   inputSchema: {
     ...pageParamsShape,
     type: z
@@ -45,12 +56,35 @@ const listDocuments = defineTool({
       .describe('Restrict to one document type. Only "invoice" or "receipt" are accepted here.'),
     start_date: isoDate.optional().describe('Include documents invoiced on or after this date.'),
     end_date: isoDate.optional().describe('Include documents invoiced on or before this date.'),
+    fulfillment_start_date: isoDate
+      .optional()
+      .describe('Include documents fulfilled (teljesítés) on or after this date.'),
+    fulfillment_end_date: isoDate
+      .optional()
+      .describe('Include documents fulfilled (teljesítés) on or before this date.'),
+    paid_start_date: isoDate.optional().describe('Include documents paid on or after this date.'),
+    paid_end_date: isoDate.optional().describe('Include documents paid on or before this date.'),
+    // Verified live 2026-10-14: only "YYYY-MM-DD HH:MM:SS" is accepted (a bare date or an
+    // ISO "T" separator 422s), it is read as Europe/Budapest local time, and documents
+    // changed after it are returned. Recording a payment moves a document into a later
+    // window.
+    last_modified_date: z
+      .string()
+      .regex(
+        /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/,
+        'must be "YYYY-MM-DD HH:MM:SS" in Europe/Budapest local time',
+      )
+      .optional()
+      .describe(
+        'Include documents created or modified after this moment, "YYYY-MM-DD HH:MM:SS" in Europe/Budapest local time. Use it to fetch only what changed since a previous call.',
+      ),
     partner_id: z.number().int().optional().describe('Restrict to one partner.'),
     block_id: z.number().int().optional().describe('Restrict to one document block.'),
     payment_status: z.enum(['expired', 'none', 'outstanding', 'paid', 'partially_paid']).optional(),
     payment_method: paymentMethodSchema.optional(),
     query: z.string().optional().describe('Free-text search.'),
   },
+  outputSchema: paginatedSchema(documentSchema),
   annotations: readOnly,
   handler: async (args, { client }) => {
     const result = await client.get<Paginated<unknown>>('/documents', { query: args });
@@ -68,13 +102,17 @@ const getDocument = defineTool({
     id: z.number().int().optional().describe('Billingo document id.'),
     vendor_id: z.string().optional().describe('Your external reference for the document.'),
   },
+  outputSchema: documentSchema,
   annotations: readOnly,
   handler: async ({ id, vendor_id }, { client }) => {
     if (id !== undefined) return jsonResult(await client.get(`/documents/${String(id)}`));
     if (vendor_id !== undefined) {
       return jsonResult(await client.get(`/documents/vendor/${encodeURIComponent(vendor_id)}`));
     }
-    return errorResult('Give either `id` or `vendor_id`.');
+    return errorResult('Give either `id` or `vendor_id`.', {
+      code: 'invalid_arguments',
+      retryable: false,
+    });
   },
 });
 
@@ -117,6 +155,7 @@ const downloadDocument = defineTool({
       if (error instanceof BillingoPdfNotReadyError) {
         return errorResult(
           `The PDF for document ${String(id)} has not generated yet. This is normal right after creating a document — try again in a few seconds.`,
+          describeError(error),
         );
       }
       throw error;
@@ -131,6 +170,7 @@ const getPublicUrl = defineTool({
   description:
     'Returns a shareable public URL for the document, viewable without a Billingo login.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: publicUrlSchema,
   annotations: readOnly,
   handler: async ({ id }, { client }) =>
     jsonResult(await client.get(`/documents/${String(id)}/public-url`)),
@@ -144,6 +184,7 @@ const getOnlineSzamlaStatus = defineTool({
     'Returns the NAV Online Számla reporting status of a document: the transaction id, the status, and any validation messages from NAV. Use this to check whether reporting succeeded. ' +
     'Errors (4xx, "NavOnlineSzamla is not found") when the document has no NAV record at all — for example when the organization is not connected to NAV Online Számla, or the document is not subject to reporting. That is not a NAV failure; it means there is nothing to report on.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: onlineSzamlaStatusSchema,
   annotations: readOnly,
   // `status` is `{ type: "string" }` in the spec — no enum. It likely carries NAV's own
   // RECEIVED/PROCESSING/SAVED/DONE/ABORTED values through, but that isn't documented
@@ -158,9 +199,13 @@ const getPayments = defineTool({
   title: 'Get document payments',
   description: 'Returns the payments recorded against a document.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: paymentsResultSchema,
   annotations: readOnly,
-  handler: async ({ id }, { client }) =>
-    jsonResult(await client.get(`/documents/${String(id)}/payments`)),
+  handler: async ({ id }, { client }) => {
+    const payments = await client.get<unknown[] | null>(`/documents/${String(id)}/payments`);
+    // An empty body (null) still answers with a list, as the schema promises.
+    return jsonResult(payments, undefined, { payments: payments ?? [] });
+  },
 });
 
 const getReminders = defineTool({
@@ -170,6 +215,7 @@ const getReminders = defineTool({
   description:
     'Returns the payment reminder events sent for a document, grouped into sent, upcoming and postal-mail reminders.',
   inputSchema: { id: z.number().int().describe('Document id.') },
+  outputSchema: remindersSchema,
   annotations: readOnly,
   handler: async ({ id }, { client }) =>
     jsonResult(await client.get(`/documents/${String(id)}/reminders`)),

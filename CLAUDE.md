@@ -59,8 +59,14 @@ to know a tool call is happening.
 2. Pick `scope: 'read'` or `scope: 'write'` honestly — see constraint 3 below ("Write
    tools are filtered out of `tools/list`"). This is a safety decision, not a style one.
 3. Add it to that module's exported array (e.g. `partnerTools`).
+   If every success of a read tool is a JSON object, give it an `outputSchema` from
+   `src/billingo/schemas.ts` and add it to `CASES` in `tests/server/output-schemas.test.ts`.
+   Build schemas with `z.looseObject` only: a plain `z.object` is published with
+   `additionalProperties: false`, and SDK clients then reject any field Billingo adds.
 4. It is automatically picked up by `src/tools/index.ts` into `allTools` — no other wiring
-   needed.
+   needed. Its module's array decides its tool category (`toolsByCategory`), which
+   `BILLINGO_TOOL_CATEGORIES` filters on; a new module's array must be added to a
+   category there (a new one or an existing one).
 5. Update the surface assertions in `tests/server/server.test.ts`: the total-count test
    (`toHaveLength(49)`, `22` read, `27` write) and any per-module test that enumerates
    tool names. These counts are load-bearing — they are the mechanism that catches a
@@ -124,10 +130,12 @@ every one of them passed the mocked suite, because MSW accepts whatever you send
 - **Every `PUT` is a full replace, not a partial update.** `PUT /partners/{id}` with just
   `{"name":"x"}` returns 422 demanding `address.post_code`, `address.city`,
   `address.address`; products demand `currency`/`unit`/`vat`; bank accounts demand
-  `account_number`/`currency`. The `update_*` tools therefore require the same field set
-  as their `create_*` counterparts, and their descriptions tell the model to fetch the
-  record first and merge. Do not "helpfully" relax those schemas — that just moves the
-  422 from us to the API.
+  `account_number`/`currency`. And a `PUT` that leaves an optional field out clears it.
+  The `update_*` tools for partners, products, bank accounts and spendings therefore
+  read the record and send it back complete with the caller's changes
+  (`src/tools/merge.ts`): their inputs are all optional, and a model sends only what
+  changes. When the API's write model gains a field, add it to that tool's `*_WRITABLE`
+  list, or an update will clear it. `update_payment` is still a plain full replace.
 - **The finalize endpoints require the full document body.** `PUT /documents/{id}`
   (`CreateDocumentFromDraft`) and `PUT /documents/receipt/{id}` declare
   `requestBody.required: true` with `DocumentInsert` / `ReceiptInsert`. Their prose

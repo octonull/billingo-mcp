@@ -45,6 +45,10 @@ const validSpending = {
   total_vat_amount_huf: 2700,
   fulfillment_date: '2026-01-15',
   payment_method: 'wire_transfer',
+  conversion_rate: 1,
+  invoice_number: 'SUP-2026-001',
+  invoice_date: '2026-01-15',
+  due_date: '2026-01-30',
 };
 
 describe('spending tool surface', () => {
@@ -125,6 +129,16 @@ describe('billingo_create_spending', () => {
     expect(schema.parse(validSpending)).toMatchObject({ category: 'other' });
   });
 
+  it('requires conversion_rate, invoice_number, invoice_date and due_date — the live API 422s without them', () => {
+    const schema = z.object(byName('billingo_create_spending').inputSchema);
+    for (const field of ['conversion_rate', 'invoice_number', 'invoice_date', 'due_date']) {
+      const body = Object.fromEntries(
+        Object.entries(validSpending).filter(([key]) => key !== field),
+      );
+      expect(schema.safeParse(body).success, field).toBe(false);
+    }
+  });
+
   it('rejects a category outside the enum instead of accepting any string', () => {
     const schema = z.object(byName('billingo_create_spending').inputSchema);
     expect(() => schema.parse({ ...validSpending, category: 'not_a_real_category' })).toThrow();
@@ -133,33 +147,6 @@ describe('billingo_create_spending', () => {
   it('rejects a payment method outside the enum', () => {
     const schema = z.object(byName('billingo_create_spending').inputSchema);
     expect(() => schema.parse({ ...validSpending, payment_method: 'not_a_real_method' })).toThrow();
-  });
-});
-
-describe('billingo_update_spending', () => {
-  const fullUpdate = { id: 11, ...validSpending, total_gross: 20000 };
-
-  it('puts the full record to /spendings/{id} without the id in the body', async () => {
-    let path = '';
-    let body: Record<string, unknown> = {};
-    server.use(
-      http.put('https://api.billingo.hu/v3/spendings/:id', async ({ request }) => {
-        path = new URL(request.url).pathname;
-        body = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json({ id: 11 });
-      }),
-    );
-    await byName('billingo_update_spending').handler(fullUpdate, ctx);
-    expect(path).toBe('/v3/spendings/11');
-    expect(body['id']).toBeUndefined();
-    expect(body['total_gross']).toBe(20000);
-  });
-
-  it('rejects a body missing SpendingSave.required fields — PUT reuses the create schema', () => {
-    const schema = z.object(byName('billingo_update_spending').inputSchema);
-    expect(() => schema.parse({ id: 11 })).toThrow();
-    expect(() => schema.parse({ id: 11, total_gross: 20000 })).toThrow();
-    expect(schema.parse(fullUpdate)).toMatchObject({ total_gross: 20000 });
   });
 });
 

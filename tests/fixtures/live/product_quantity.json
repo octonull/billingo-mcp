@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": {
+      "message": "Automatic order processing is disabled"
+    }
+  }
+}
