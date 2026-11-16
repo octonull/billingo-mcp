@@ -24,8 +24,8 @@ npm run test:coverage  # vitest run --coverage (kept at 100%)
 npm run test:live      # vitest run against the real Billingo sandbox; skips cleanly
                         # without BILLINGO_SANDBOX_API_KEY set
 npm run build          # tsc -p tsconfig.build.json
-npm run start:stdio    # node dist/transports/stdio.js
-npm run start:http     # node dist/transports/http.js
+npm run start:stdio    # node dist/bin/stdio.js
+npm run start:http     # node dist/bin/http.js
 ```
 
 Also: `npm run format` / `npm run format:check` (Prettier) and `node scripts/check-spec-drift.mjs`
