@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.4
+
+[compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.3...v0.1.4)
+
+### 🩹 Fixes
+
+- **stdio:** Start the server when run through npm's bin symlink ([#32](https://github.com/octonull/billingo-mcp/pull/32))
+
+### 🏡 Chore
+
+- **deps-dev:** Bump the dev-dependencies group with 2 updates ([#29](https://github.com/octonull/billingo-mcp/pull/29))
+- **deps-dev:** Bump the dev-dependencies group with 4 updates ([#30](https://github.com/octonull/billingo-mcp/pull/30))
+
+### ❤️ Contributors
+
+- Peter Buglavecz <peter.buglavecz@billingo.com>
+
 ## v0.1.3
 
 [compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.2...v0.1.3)
