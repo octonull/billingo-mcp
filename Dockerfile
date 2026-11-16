@@ -28,4 +28,4 @@ COPY spec ./spec
 ENV NODE_ENV=production
 EXPOSE 3000
 USER nonroot
-CMD ["dist/transports/http.js"]
+CMD ["dist/bin/http.js"]

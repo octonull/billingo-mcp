@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // src/transports/stdio.ts
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -27,12 +26,4 @@ export async function main(): Promise<void> {
   // stdout carries the protocol — every diagnostic must go to stderr.
   console.error(`billingo-mcp: stdio, ${allowWrite ? 'read/write' : 'read-only'} mode`);
   await server.connect(new StdioServerTransport());
-}
-
-// Only run when executed directly, so importing this module in tests starts nothing.
-if (process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  });
 }

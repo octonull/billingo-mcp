@@ -61,12 +61,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Smoke-test the stdio binary
+      # Installs the packed tarball and runs it through npm's `bin` symlink, exactly as
+      # `npx` and `npm i -g` do. Running dist/ directly is not enough: the symlink is
+      # what broke 0.1.3 (issue #31), and a direct run never goes through it.
+      - name: Smoke-test the installed bin (via npm's symlink)
         run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          npm install -g --prefix "$RUNNER_TEMP/global" "$RUNNER_TEMP"/billingo-billingo-mcp-*.tgz
           echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
-            | BILLINGO_API_KEY=dummy node dist/transports/stdio.js \
+            | BILLINGO_API_KEY=dummy "$RUNNER_TEMP/global/bin/billingo-mcp" \
             | grep -q '"serverInfo"' \
-            || { echo "::error::stdio binary did not answer initialize"; exit 1; }
+            || { echo "::error::installed billingo-mcp bin did not answer initialize"; exit 1; }
 
   docker:
     runs-on: ubuntu-latest
