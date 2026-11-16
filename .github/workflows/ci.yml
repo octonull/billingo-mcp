@@ -70,8 +70,8 @@ jobs:
           npm install -g --prefix "$RUNNER_TEMP/global" "$RUNNER_TEMP"/billingo-billingo-mcp-*.tgz
           echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
             | BILLINGO_API_KEY=dummy "$RUNNER_TEMP/global/bin/billingo-mcp" \
-            | grep -q '"serverInfo"' \
-            || { echo "::error::installed billingo-mcp bin did not answer initialize"; exit 1; }
+            | grep -q "\"serverInfo\":{\"name\":\"billingo\",\"version\":\"$(node -p 'require("./package.json").version')\"}" \
+            || { echo "::error::installed billingo-mcp bin did not answer initialize with the package version"; exit 1; }
 
   docker:
     runs-on: ubuntu-latest

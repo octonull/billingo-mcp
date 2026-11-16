@@ -2,6 +2,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { readFileSync } from 'node:fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { BillingoClient } from '../../src/billingo/client.js';
@@ -54,6 +55,16 @@ describe('tool registry totals', () => {
       if (tool.scope === 'read') expect(tool.annotations.readOnlyHint, tool.name).toBe(true);
       else expect(tool.annotations.readOnlyHint, tool.name).not.toBe(true);
     }
+  });
+});
+
+describe('serverInfo', () => {
+  it('reports the package.json version, not a hard-coded one', async () => {
+    const pkg = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+    const { client } = await connect(false);
+    expect(client.getServerVersion()).toEqual({ name: 'billingo', version: pkg.version });
   });
 });
 
