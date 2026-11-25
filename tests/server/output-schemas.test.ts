@@ -83,13 +83,13 @@ const CASES: { tool: string; args: Record<string, unknown>; path: string; fixtur
   {
     tool: 'billingo_list_bank_transactions',
     args: {},
-    path: '/bank-transactions',
+    path: '/bank-sync/transactions',
     fixture: 'bank_transactions',
   },
   {
     tool: 'billingo_get_bank_transaction',
     args: { id: 7 },
-    path: '/bank-transactions/7',
+    path: '/bank-sync/transactions/7',
     fixture: 'bank_transaction',
   },
   {

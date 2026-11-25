@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/bank-transactions": {
+    "/bank-sync/transactions": {
         parameters: {
             query?: never;
             header?: never;
@@ -24,7 +24,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/bank-transactions/{id}": {
+    "/bank-sync/transactions/{id}": {
         parameters: {
             query?: never;
             header?: never;

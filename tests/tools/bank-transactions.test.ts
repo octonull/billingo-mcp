@@ -51,7 +51,7 @@ describe('billingo_list_bank_transactions', () => {
   it('sends the list filters as single comma-separated parameters', async () => {
     let params = new URLSearchParams();
     server.use(
-      http.get('https://api.billingo.hu/v3/bank-transactions', ({ request }) => {
+      http.get('https://api.billingo.hu/v3/bank-sync/transactions', ({ request }) => {
         params = new URL(request.url).searchParams;
         return HttpResponse.json(EMPTY_PAGE);
       }),
@@ -86,13 +86,13 @@ describe('billingo_list_bank_transactions', () => {
   it('sends no filter the caller left out', async () => {
     let url = '';
     server.use(
-      http.get('https://api.billingo.hu/v3/bank-transactions', ({ request }) => {
+      http.get('https://api.billingo.hu/v3/bank-sync/transactions', ({ request }) => {
         url = request.url;
         return HttpResponse.json(EMPTY_PAGE);
       }),
     );
     const result = await byName('billingo_list_bank_transactions').handler({}, ctx);
-    expect(url).toBe('https://api.billingo.hu/v3/bank-transactions');
+    expect(url).toBe('https://api.billingo.hu/v3/bank-sync/transactions');
     expect(JSON.stringify(result.content)).toContain('No results.');
   });
 });
@@ -100,7 +100,7 @@ describe('billingo_list_bank_transactions', () => {
 describe('billingo_get_bank_transaction', () => {
   it('reads the transaction by id', async () => {
     server.use(
-      http.get('https://api.billingo.hu/v3/bank-transactions/7', () =>
+      http.get('https://api.billingo.hu/v3/bank-sync/transactions/7', () =>
         HttpResponse.json({ id: 7, amount: -1500.5, type: 'out' }),
       ),
     );
@@ -113,7 +113,7 @@ describe('billingo_get_bank_transaction', () => {
     const message =
       'The Bank Transactions API is in preview and not enabled for this organization. This is not a subscription problem; retrying will not help. The user can request access at hello@billingo.hu.';
     server.use(
-      http.get('https://api.billingo.hu/v3/bank-transactions/7', () =>
+      http.get('https://api.billingo.hu/v3/bank-sync/transactions/7', () =>
         HttpResponse.json({ error: { message } }, { status: 403 }),
       ),
     );
