@@ -30,13 +30,14 @@ describe('tool categories', () => {
     expect(new Set(seen).size).toBe(allTools.length);
   });
 
-  it('are the seven parts of Billingo, in a stable order', () => {
+  it('are the eight parts of Billingo, in a stable order', () => {
     expect(TOOL_CATEGORIES).toEqual([
       'organization',
       'partners',
       'products',
       'spendings',
       'bank_accounts',
+      'bank_transactions',
       'document_blocks',
       'documents',
     ]);
@@ -87,10 +88,10 @@ describe('createServer with categories', () => {
     expect(names.sort()).toEqual(expected.sort());
   });
 
-  it('lists all 22 read tools when no category is given, in the same order as before', async () => {
+  it('lists all 24 read tools when no category is given, in the same order as before', async () => {
     const { names } = await listTools(false);
     expect(names).toEqual(allTools.filter((t) => t.scope === 'read').map((t) => t.name));
-    expect(names).toHaveLength(22);
+    expect(names).toHaveLength(24);
   });
 
   it('tells the model which groups are loaded, so it can say what is missing', async () => {

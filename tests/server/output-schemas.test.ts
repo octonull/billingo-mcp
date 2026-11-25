@@ -78,6 +78,20 @@ const CASES: { tool: string; args: Record<string, unknown>; path: string; fixtur
     path: '/bank-accounts/1',
     fixture: 'bank_account',
   },
+  // Not recorded live (preview, not enabled on the sandbox yet): shaped after the API's
+  // own schema test, BankTransactionTest in the Billingo repository.
+  {
+    tool: 'billingo_list_bank_transactions',
+    args: {},
+    path: '/bank-sync/transactions',
+    fixture: 'bank_transactions',
+  },
+  {
+    tool: 'billingo_get_bank_transaction',
+    args: { id: 7 },
+    path: '/bank-sync/transactions/7',
+    fixture: 'bank_transaction',
+  },
   {
     tool: 'billingo_list_document_blocks',
     args: {},
@@ -152,7 +166,7 @@ describe('which tools publish an outputSchema', () => {
     expect([...CASES.map((c) => c.tool), ...WITHOUT_SCHEMA].sort()).toEqual(reads.sort());
   });
 
-  it('lists the 17 schemas over a real MCP connection, and none for the other 5', async () => {
+  it('lists the 19 schemas over a real MCP connection, and none for the other 5', async () => {
     const client = await connect();
     const { tools } = await client.listTools();
     const withSchema = tools.filter((t) => t.outputSchema !== undefined).map((t) => t.name);
