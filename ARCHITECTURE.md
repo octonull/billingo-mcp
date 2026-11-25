@@ -25,7 +25,7 @@ forrása ne térjen el.
 | stdio transzport | `src/transports/stdio.ts`             | Asztali MCP klienseknek. Az API kulcsot, az írási jogot és az eszközcsoportokat környezeti változóból olvassa (`BILLINGO_API_KEY`, `BILLINGO_ALLOW_WRITE`, `BILLINGO_TOOL_CATEGORIES`).                                       |
 | HTTP transzport  | `src/transports/http.ts`              | Állapotmentes Streamable HTTP. Minden kérés saját szervert kap a kérés fejléceiből (`X-Billingo-Api-Key`, `X-Billingo-Allow-Write`, `X-Billingo-Tool-Categories` vagy `?categories=`), így két ügyfél között semmi sem közös. |
 | Szerver          | `src/server.ts`                       | A `createServer` kiválasztja a kért eszközcsoportokat, kiszűri az író eszközöket, ha nincs írási jog, és regisztrálja az eszközöket sémával és jelölésekkel. A `runTool` minden hívást körbevesz.                             |
-| Eszközök         | `src/tools/`                          | 7 csoport, 49 eszköz (22 olvasó, 27 író). Egy eszköz egy `defineTool` hívás: név, olvasó vagy író, leírás, bemeneti séma, opcionális kimeneti séma, jelölések, kezelő. A csoportok listája: `src/tools/index.ts`.             |
+| Eszközök         | `src/tools/`                          | 8 csoport, 51 eszköz (24 olvasó, 27 író). Egy eszköz egy `defineTool` hívás: név, olvasó vagy író, leírás, bemeneti séma, opcionális kimeneti séma, jelölések, kezelő. A csoportok listája: `src/tools/index.ts`.             |
 | Módosítás        | `src/tools/merge.ts`                  | Az `update_*` eszközök közös olvas–összefésül–ír logikája (lásd lent).                                                                                                                                                        |
 | Billingo kliens  | `src/billingo/client.ts`              | `X-API-KEY` fejléc, lapozás, ismétlés. Csak a `GET` kéréseket ismétli (429 és még el nem készült PDF esetén), mert egy ismételt írás második számlát állíthatna ki.                                                           |
 | Hibák            | `src/billingo/errors.ts`              | Típusos Billingo hibák, és a géppel olvasható hibakód (`code`, `retryable`, `outcome_unknown` …).                                                                                                                             |
@@ -38,7 +38,7 @@ forrása ne térjen el.
 2. `tools/call` kérésnél az SDK a bemeneti séma alapján ellenőrzi az argumentumokat, majd a
    `runTool` meghívja az eszköz kezelőjét.
 3. A kezelő a `BillingoClient`-en keresztül hívja a Billingo API-t.
-4. Siker esetén a modell szöveges blokkot kap; a kimeneti sémával rendelkező 17 olvasó eszköz
+4. Siker esetén a modell szöveges blokkot kap; a kimeneti sémával rendelkező 19 olvasó eszköz
    `structuredContent`-et is ad.
 5. Ha a Billingo hibát ad, a `runTool` elkapja, és a hibaüzenet mellé egy JSON blokkot tesz a
    hibakóddal. A szerverhiba (5xx) csak idempotens eszköznél újrapróbálható; máshol
@@ -92,7 +92,7 @@ source.
 | stdio transport | `src/transports/stdio.ts`             | For desktop MCP clients. Reads the API key, the write scope and the tool groups from the environment (`BILLINGO_API_KEY`, `BILLINGO_ALLOW_WRITE`, `BILLINGO_TOOL_CATEGORIES`).                                                          |
 | HTTP transport  | `src/transports/http.ts`              | Stateless Streamable HTTP. Every request gets its own server, built from that request's headers (`X-Billingo-Api-Key`, `X-Billingo-Allow-Write`, `X-Billingo-Tool-Categories` or `?categories=`), so nothing is shared between tenants. |
 | Server          | `src/server.ts`                       | `createServer` picks the requested tool groups, drops the write tools when writes are not allowed, and registers each tool with its schemas and annotations. `runTool` wraps every call.                                                |
-| Tools           | `src/tools/`                          | 7 groups, 49 tools (22 read, 27 write). A tool is one `defineTool` call: name, read or write scope, description, input schema, optional output schema, annotations, handler. The group list is `src/tools/index.ts`.                    |
+| Tools           | `src/tools/`                          | 8 groups, 51 tools (24 read, 27 write). A tool is one `defineTool` call: name, read or write scope, description, input schema, optional output schema, annotations, handler. The group list is `src/tools/index.ts`.                    |
 | Updates         | `src/tools/merge.ts`                  | The shared read–merge–write of the `update_*` tools (see below).                                                                                                                                                                        |
 | Billingo client | `src/billingo/client.ts`              | `X-API-KEY` header, paging, retries. Only `GET` requests are retried (on 429 and a PDF that is not ready yet), because a retried write could issue a second invoice.                                                                    |
 | Errors          | `src/billingo/errors.ts`              | Typed Billingo errors and the machine-readable error code (`code`, `retryable`, `outcome_unknown` …).                                                                                                                                   |
@@ -105,7 +105,7 @@ source.
 2. On `tools/call` the SDK validates the arguments against the input schema, then `runTool`
    calls the tool's handler.
 3. The handler calls the Billingo API through `BillingoClient`.
-4. On success the model gets a text block; the 17 read tools with an output schema also
+4. On success the model gets a text block; the 19 read tools with an output schema also
    return `structuredContent`.
 5. When Billingo returns an error, `runTool` catches it and adds a JSON block with the error
    code next to the message. A 5xx is retryable only on an idempotent tool; anywhere else it

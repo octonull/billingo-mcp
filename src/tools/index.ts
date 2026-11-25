@@ -1,5 +1,6 @@
 // src/tools/index.ts
 import { bankAccountTools } from './bank-accounts.js';
+import { bankTransactionTools } from './bank-transactions.js';
 import { documentBlockTools } from './document-blocks.js';
 import { documentDestructiveTools } from './documents/destructive.js';
 import { documentExportTools } from './documents/export.js';
@@ -14,7 +15,7 @@ import type { AnyToolDefinition } from './registry.js';
 /**
  * Tools grouped by the part of Billingo they work on. A connection can load only the
  * groups it needs, so a host that puts every tool schema into the prompt is not handed
- * all 49 when it only issues invoices.
+ * all 51 when it only issues invoices.
  */
 export const toolsByCategory = {
   organization: organizationTools,
@@ -22,6 +23,7 @@ export const toolsByCategory = {
   products: productTools,
   spendings: spendingTools,
   bank_accounts: bankAccountTools,
+  bank_transactions: bankTransactionTools,
   document_blocks: documentBlockTools,
   documents: [
     ...documentReadTools,
@@ -35,7 +37,7 @@ export type ToolCategory = keyof typeof toolsByCategory;
 
 export const TOOL_CATEGORIES = Object.keys(toolsByCategory) as ToolCategory[];
 
-/** Every tool the server can offer: 22 read, 27 write. */
+/** Every tool the server can offer: 24 read, 27 write. */
 export const allTools: AnyToolDefinition[] = TOOL_CATEGORIES.flatMap((c) => toolsByCategory[c]);
 
 /** The tools of the given categories, in catalogue order; every tool when none is given. */
