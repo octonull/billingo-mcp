@@ -2,6 +2,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { z } from 'zod';
 import { BillingoClient } from '../../src/billingo/client.js';
 import { bankTransactionTools } from '../../src/tools/bank-transactions.js';
 import type { AnyToolDefinition } from '../../src/tools/registry.js';
@@ -48,6 +49,16 @@ describe('bank transaction tool surface', () => {
 });
 
 describe('billingo_list_bank_transactions', () => {
+  it('rejects inputs the backend would answer with 422 or a route 404', () => {
+    const list = z.object(byName('billingo_list_bank_transactions').inputSchema);
+    expect(list.safeParse({ max_amount: 999_999_999_999 }).success).toBe(true);
+    expect(list.safeParse({ max_amount: 1_000_000_000_000 }).success).toBe(false);
+    expect(list.safeParse({ min_amount: 1_000_000_000_000 }).success).toBe(false);
+    expect(list.safeParse({ bank_account_id: [-1] }).success).toBe(false);
+    const get = z.object(byName('billingo_get_bank_transaction').inputSchema);
+    expect(get.safeParse({ id: 0 }).success).toBe(false);
+  });
+
   it('sends the list filters as single comma-separated parameters', async () => {
     let params = new URLSearchParams();
     server.use(
