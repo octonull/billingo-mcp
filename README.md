@@ -54,6 +54,7 @@ Olvasd [angolul](#english) is — az angol szakasz egy teljes fordítás, nem ö
 | --------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
 | 🌐 **[Hosztolt szerver](#-használat-a-hosztolt-szerverrel-ajánlott)** | Semmi — csak add meg a kliensedben az URL-t | A legtöbb felhasználónak: nulla telepítés, nulla karbantartás |
 | 💻 **[stdio npx-szel](#-telepítés--futtatás-stdio-val)**              | `npx`, build nélkül                         | Asztali MCP kliensek (Claude Desktop, Claude Code)            |
+| 🧩 **[Claude Desktop bővítmény](#claude-desktop-bővítmény-mcpb)**     | `.mcpb` fájl, dupla kattintás               | Claude Desktop: Node és JSON szerkesztés nélkül               |
 | 🐳 **[Docker (önálló üzemeltetés, HTTP)](#-futtatás-dockerrel-http)** | `docker run`                                | Ha saját infrastruktúrán akarod futtatni                      |
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
@@ -95,6 +96,29 @@ leírtak szerint.
 ## 💻 Telepítés / futtatás stdio-val
 
 Nincs telepítési lépés — az `npx` igény szerint letölti és futtatja a csomagot.
+
+### Claude Desktop bővítmény (.mcpb)
+
+A Claude Desktopba a legegyszerűbb a bővítményként telepítés: nem kell hozzá Node, és
+nem kell JSON-t szerkeszteni.
+
+1. Töltsd le a `billingo-mcp-<verzió>.mcpb` fájlt a legutóbbi
+   [GitHub release](https://github.com/octonull/billingo-mcp/releases/latest) mellékletei
+   közül.
+2. Nyisd meg dupla kattintással, vagy a Claude Desktopban a **Settings → Extensions**
+   oldalon húzd rá a fájlt, majd **Install**.
+3. A telepítő bekéri a beállításokat:
+   - **Billingo API key** (kötelező) — lásd [API kulcs](#api-kulcs). A Claude Desktop
+     az operációs rendszer kulcstárában tárolja, nem sima szöveges fájlban.
+   - **Allow writes** — alapból kikapcsolva (csak olvasás); ugyanaz, mint a
+     `BILLINGO_ALLOW_WRITE`.
+   - **Tool categories** — opcionális, üresen minden eszközcsoport betöltődik; ugyanaz,
+     mint a `BILLINGO_TOOL_CATEGORIES`.
+
+A bővítmény a npm csomag ugyanazon verzióját tartalmazza a futáshoz szükséges
+függőségeivel együtt, és a Claude Desktop beépített Node-jával fut. Frissítéshez
+telepítsd az új release `.mcpb` fájlját. A beállítások később a **Settings → Extensions →
+Billingo** oldalon módosíthatók.
 
 ### Claude Desktop
 
@@ -404,6 +428,11 @@ konfliktussal buktatja el az `npm install`-t.
 További hasznos parancsok: `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run test:coverage`, `npm run build`.
 
+**Claude Desktop bővítmény:** az `npm run pack:mcpb` buildel, majd elkészíti a
+`build/mcpb/billingo-mcp-<verzió>.mcpb` fájlt az `mcpb/manifest.json` alapján (a
+verziót a `package.json`-ból veszi). A CI minden PR-on becsomagolja és a kicsomagolt
+szervert elindítja, a Release 2 workflow pedig a GitHub release-hez csatolja.
+
 **Architektúra:** a rétegek, egy eszközhívás útja és a módosító eszközök működése ábrával:
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -448,11 +477,12 @@ it yourself? It's also published on npm as
 
 ## 🧭 Choose how to run it
 
-|                                                             | Setup                             | Best for                                              |
-| ----------------------------------------------------------- | --------------------------------- | ----------------------------------------------------- |
-| 🌐 **[Hosted server](#-use-the-hosted-server-recommended)** | None — point your client at a URL | Most people: zero install, zero maintenance           |
-| 💻 **[stdio via npx](#-install--run-with-stdio)**           | `npx`, no build                   | Desktop MCP clients (Claude Desktop, Claude Code)     |
-| 🐳 **[Docker (self-hosted HTTP)](#-run-with-docker-http)**  | `docker run`                      | Running your own instance, on your own infrastructure |
+|                                                                   | Setup                             | Best for                                              |
+| ----------------------------------------------------------------- | --------------------------------- | ----------------------------------------------------- |
+| 🌐 **[Hosted server](#-use-the-hosted-server-recommended)**       | None — point your client at a URL | Most people: zero install, zero maintenance           |
+| 💻 **[stdio via npx](#-install--run-with-stdio)**                 | `npx`, no build                   | Desktop MCP clients (Claude Desktop, Claude Code)     |
+| 🧩 **[Claude Desktop extension](#claude-desktop-extension-mcpb)** | `.mcpb` file, double-click        | Claude Desktop without Node or editing JSON           |
+| 🐳 **[Docker (self-hosted HTTP)](#-run-with-docker-http)**        | `docker run`                      | Running your own instance, on your own infrastructure |
 
 ⬆️ [Back to top](#tartalomjegyzék)
 
@@ -490,6 +520,27 @@ Get your API key the same way as described under [API key](#api-key) below.
 ## 💻 Install / run with stdio
 
 No install step — `npx` fetches and runs the package on demand.
+
+### Claude Desktop extension (.mcpb)
+
+The simplest way into Claude Desktop is the extension: no Node install and no JSON to
+edit.
+
+1. Download `billingo-mcp-<version>.mcpb` from the assets of the latest
+   [GitHub release](https://github.com/octonull/billingo-mcp/releases/latest).
+2. Double-click it, or drop it onto **Settings → Extensions** in Claude Desktop, then
+   **Install**.
+3. The installer asks for the settings:
+   - **Billingo API key** (required) — see [API key](#api-key). Claude Desktop keeps it
+     in the operating system's keychain, not in a plain-text file.
+   - **Allow writes** — off by default (read-only); the same as `BILLINGO_ALLOW_WRITE`.
+   - **Tool categories** — optional, empty loads every group; the same as
+     `BILLINGO_TOOL_CATEGORIES`.
+
+The extension carries the same version as the npm package, with its runtime
+dependencies, and runs on Claude Desktop's built-in Node. To update, install the
+.mcpb of the new release. The settings can be changed later under **Settings →
+Extensions → Billingo**.
 
 ### Claude Desktop
 
@@ -788,6 +839,11 @@ intersection is 5.9.3. Installing a newer TypeScript fails `npm install` with an
 
 Other useful commands: `npm run typecheck`, `npm run lint`, `npm run format`,
 `npm run test:coverage`, `npm run build`.
+
+**Claude Desktop extension:** `npm run pack:mcpb` builds, then writes
+`build/mcpb/billingo-mcp-<version>.mcpb` from `mcpb/manifest.json` (the version comes
+from `package.json`). CI packs it on every PR and starts the unpacked server; the
+Release 2 workflow attaches it to the GitHub release.
 
 **Architecture:** the layers, the path of a tool call and how the update tools work, with a
 diagram: [ARCHITECTURE.md](ARCHITECTURE.md#english).

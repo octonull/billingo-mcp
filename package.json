@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "pack:mcpb": "npm run build && node scripts/pack-mcpb.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -37,6 +38,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2",
     "@eslint/js": "10.0.1",
     "@types/node": "22.20.5",
     "@vitest/coverage-v8": "5.1.1",

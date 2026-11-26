@@ -75,6 +75,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # The Claude Desktop Extension, attached to the GitHub Release that publish created.
+  # A job of its own, not a step of publish: a failure here must not stop the image and
+  # the deploy, and it can be re-run alone, whereas re-running publish cannot get past
+  # npm refusing to publish the same version twice. --clobber makes that re-run safe.
+  publish-mcpb:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      COMMIT_SHA: ${{ needs.publish.outputs.commit_sha }}
+      VERSION: ${{ needs.publish.outputs.version }}
+    steps:
+      - name: Checkout the release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.publish.outputs.commit_sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Pack the .mcpb and attach it to the GitHub Release
+        run: |
+          npm run pack:mcpb
+          gh release upload "$VERSION" build/mcpb/billingo-mcp-*.mcpb --clobber
+          echo "Attached billingo-mcp-${VERSION#v}.mcpb to the $VERSION release." >> "$GITHUB_STEP_SUMMARY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-docker:
     needs: publish
     runs-on: ubuntu-latest

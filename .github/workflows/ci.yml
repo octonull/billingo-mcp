@@ -73,6 +73,27 @@ jobs:
             | grep -q "\"serverInfo\":{\"name\":\"billingo\",\"version\":\"$(node -p 'require("./package.json").version')\"}" \
             || { echo "::error::installed billingo-mcp bin did not answer initialize with the package version"; exit 1; }
 
+      # Packs the Claude Desktop Extension and runs the server out of the unpacked bundle,
+      # the way Claude Desktop does: only the files inside the .mcpb, its own node_modules.
+      - name: Pack the .mcpb and smoke-test the unpacked server
+        run: |
+          npm run pack:mcpb
+          VERSION=$(node -p "require('./package.json').version")
+          unzip -q "build/mcpb/billingo-mcp-${VERSION}.mcpb" -d "$RUNNER_TEMP/mcpb"
+          test "$(node -p "require(process.argv[1]).version" "$RUNNER_TEMP/mcpb/manifest.json")" = "$VERSION" \
+            || { echo "::error::the .mcpb manifest does not carry the package.json version"; exit 1; }
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | BILLINGO_API_KEY=dummy BILLINGO_ALLOW_WRITE=false BILLINGO_TOOL_CATEGORIES= \
+              node "$RUNNER_TEMP/mcpb/server/dist/bin/stdio.js" > "$RUNNER_TEMP/mcpb.jsonl"
+          grep -q "\"serverInfo\":{\"name\":\"billingo\",\"version\":\"$VERSION\"}" "$RUNNER_TEMP/mcpb.jsonl" \
+            || { echo "::error::the unpacked .mcpb server did not answer initialize with the package version"; exit 1; }
+          TOOLS=$(grep '"id":2' "$RUNNER_TEMP/mcpb.jsonl" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).result.tools.length")
+          test "$TOOLS" = 24 \
+            || { echo "::error::expected 24 read-only tools from the unpacked .mcpb server, got $TOOLS"; exit 1; }
+
   docker:
     runs-on: ubuntu-latest
     steps:

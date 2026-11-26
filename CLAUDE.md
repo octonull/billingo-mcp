@@ -24,6 +24,7 @@ npm run test:coverage  # vitest run --coverage (kept at 100%)
 npm run test:live      # vitest run against the real Billingo sandbox; skips cleanly
                         # without BILLINGO_SANDBOX_API_KEY set
 npm run build          # tsc -p tsconfig.build.json
+npm run pack:mcpb      # build + build/mcpb/billingo-mcp-<version>.mcpb (Claude Desktop Extension)
 npm run start:stdio    # node dist/bin/stdio.js
 npm run start:http     # node dist/bin/http.js
 ```
@@ -105,6 +106,23 @@ to know a tool call is happening.
    "not ready" status (202 on the download endpoint). POST/PUT/DELETE are never retried,
    even on a network error or 5xx: a retried `POST /documents` would issue a second,
    separately NAV-reported invoice, which cannot be undone.
+
+## Claude Desktop Extension (.mcpb)
+
+`mcpb/manifest.json` describes the extension; `scripts/pack-mcpb.mjs` stages `dist/`,
+`package.json` (read at startup by `src/server.ts` for the reported version) and the
+production dependencies (`npm ci --omit=dev` from the lockfile), then runs the pinned
+`@anthropic-ai/mcpb` CLI to validate and pack. The extension settings map onto the stdio
+env vars (`api_key` → `BILLINGO_API_KEY`, `allow_write` → `BILLINGO_ALLOW_WRITE`,
+`tool_categories` → `BILLINGO_TOOL_CATEGORIES`).
+
+- **The manifest's `"version"` stays `"0.0.0"`.** The release PR bumps only
+  `package.json`; the pack script stamps that version into the bundled manifest.
+- **`tests/mcpb/manifest.test.ts` pins the manifest to the code.** A new stdio env var,
+  a renamed bin or a new tool category fails it until the manifest follows.
+- CI (`build` job) packs it and runs the server from the unpacked bundle; the Release 2
+  workflow attaches it to the GitHub Release in a job of its own (`publish-mcpb`), so a
+  failed upload never blocks the image and the deploy, and it can be re-run alone.
 
 ## Error shapes
 
