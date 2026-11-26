@@ -1,0 +1,19 @@
+{
+  "status": 200,
+  "body": {
+    "id": 7,
+    "bank_account_id": 285666,
+    "booking_date": "2026-11-01",
+    "type": "out",
+    "amount": -1500.5,
+    "currency": "HUF",
+    "partner_name": "Example Kft.",
+    "comment": "Számla 2026/1",
+    "additional_comment": null,
+    "payer": { "name": "Example Kft.", "account_number": "11773016-11111018-00000000" },
+    "payee": null,
+    "pairing_status": "unpaired",
+    "created_at": "2026-11-01T10:00:00+01:00",
+    "updated_at": "2026-11-01T11:00:00+01:00"
+  }
+}

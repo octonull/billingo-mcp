@@ -61,6 +61,24 @@ export const bankAccountSchema = z.looseObject({
   need_qr: nbool,
 });
 
+/** components.schemas.BankTransaction. `amount` is signed: incoming positive, outgoing negative. */
+export const bankTransactionSchema = z.looseObject({
+  id: z.number(),
+  bank_account_id: nnum,
+  booking_date: nstr,
+  type: nstr,
+  amount: nnum,
+  currency: nstr,
+  partner_name: nstr,
+  comment: nstr,
+  additional_comment: nstr,
+  payer: nested({ name: nstr, account_number: nstr }),
+  payee: nested({ name: nstr, account_number: nstr }),
+  pairing_status: nstr,
+  created_at: nstr,
+  updated_at: nstr,
+});
+
 export const documentBlockSchema = z.looseObject({
   id: z.number(),
   name: nstr,

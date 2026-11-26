@@ -254,3 +254,16 @@ export const documentLanguageSchema = z.enum([
   'sk',
   'us',
 ]);
+
+/** Verbatim from spec/billingo-3.0.15.json → components.schemas.BankTransaction.properties.type.enum */
+export const BANK_TRANSACTION_TYPES = ['in', 'out'] as const;
+export const bankTransactionTypeSchema = z.enum(BANK_TRANSACTION_TYPES);
+
+/** Verbatim from spec/billingo-3.0.15.json → components.schemas.BankTransaction.properties.pairing_status.enum */
+export const BANK_TRANSACTION_PAIRING_STATUSES = [
+  'ignored',
+  'paired',
+  'partially_paired',
+  'unpaired',
+] as const;
+export const bankTransactionPairingStatusSchema = z.enum(BANK_TRANSACTION_PAIRING_STATUSES);

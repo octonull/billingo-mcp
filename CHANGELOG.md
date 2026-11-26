@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.5
+
+[compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.4...v0.1.5)
+
+### 🚀 Enhancements
+
+- Bank transaction tools (preview) ([#35](https://github.com/octonull/billingo-mcp/pull/35))
+
+### 🏡 Chore
+
+- **deps-dev:** Bump the dev-dependencies group with 3 updates ([#34](https://github.com/octonull/billingo-mcp/pull/34))
+
+### ❤️ Contributors
+
+- Tóth Tamás <tothtms@gmail.com>
+
 ## v0.1.4
 
 [compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.3...v0.1.4)
