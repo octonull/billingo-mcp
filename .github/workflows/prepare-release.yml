@@ -1,4 +1,4 @@
-name: Release Prepare (Version Bump + PR)
+name: Release 1 – Prepare (Version Bump + PR)
 
 on:
   workflow_dispatch: {}
