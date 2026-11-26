@@ -1,4 +1,4 @@
-name: Publish NPM and ghcr.io
+name: Release 2 – Publish NPM and ghcr.io
 
 on:
   workflow_dispatch: {}
