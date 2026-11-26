@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.7
+
+[compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.6...v0.1.7)
+
+### 🚀 Enhancements
+
+- Claude Desktop Extension (.mcpb) package (IT-362) ([#42](https://github.com/octonull/billingo-mcp/pull/42))
+
+### 🤖 CI
+
+- Number the release workflows so they list in order ([#41](https://github.com/octonull/billingo-mcp/pull/41))
+
+### ❤️ Contributors
+
+- Peter Buglavecz <peter.buglavecz@billingo.com>
+
 ## v0.1.6
 
 [compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.5...v0.1.6)
