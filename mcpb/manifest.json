@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.2.schema.json",
+  "manifest_version": "0.2",
+  "name": "billingo-mcp",
+  "display_name": "Billingo",
+  "version": "0.0.0",
+  "description": "Official Billingo MCP server: invoices, partners, products, spendings and bank accounts through the Billingo API v3.",
+  "long_description": "Exposes the Billingo invoicing API (v3) to Claude. Read-only by default: the write tools (issuing, changing, deleting, sending and cancelling documents) are only offered when you turn on \"Allow writes\" in the extension settings. Claude Desktop keeps the API key in the operating system's keychain, not in a plain-text config file.",
+  "author": {
+    "name": "Billingo Technologies Zrt.",
+    "url": "https://billingo.hu"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/octonull/billingo-mcp"
+  },
+  "homepage": "https://github.com/octonull/billingo-mcp",
+  "documentation": "https://github.com/octonull/billingo-mcp#readme",
+  "support": "https://github.com/octonull/billingo-mcp/issues",
+  "license": "MIT",
+  "keywords": ["billingo", "invoice", "számlázás", "accounting", "nav"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/dist/bin/stdio.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/dist/bin/stdio.js"],
+      "env": {
+        "BILLINGO_API_KEY": "${user_config.api_key}",
+        "BILLINGO_ALLOW_WRITE": "${user_config.allow_write}",
+        "BILLINGO_TOOL_CATEGORIES": "${user_config.tool_categories}"
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Billingo API key",
+      "description": "Create one in Billingo under Beállítások → API kulcsok. Its own scope (read or write) is a second gate next to \"Allow writes\".",
+      "required": true,
+      "sensitive": true
+    },
+    "allow_write": {
+      "type": "boolean",
+      "title": "Allow writes",
+      "description": "On: Claude can issue, change, delete, send and cancel (storno) documents. Off: read-only, the write tools are not offered at all.",
+      "required": false,
+      "default": false
+    },
+    "tool_categories": {
+      "type": "string",
+      "title": "Tool categories (optional)",
+      "description": "Comma-separated; leave empty for all: organization, partners, products, spendings, bank_accounts, bank_transactions, document_blocks, documents.",
+      "required": false,
+      "default": ""
+    }
+  },
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=22.0.0"
+    }
+  }
+}

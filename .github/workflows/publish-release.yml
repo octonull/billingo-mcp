@@ -75,6 +75,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # The Claude Desktop Extension of the same build, attached to the release just
+      # created. --clobber keeps a retried run from failing on the asset it uploaded.
+      - name: Attach the .mcpb to the GitHub Release
+        run: |
+          npm run pack:mcpb
+          gh release upload "$TAG" build/mcpb/billingo-mcp-*.mcpb --clobber
+        env:
+          TAG: ${{ steps.tag.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-docker:
     needs: publish
     runs-on: ubuntu-latest

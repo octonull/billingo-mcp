@@ -2,7 +2,7 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'src/billingo/types.gen.ts', 'coverage/**'] },
+  { ignores: ['dist/**', 'build/**', 'src/billingo/types.gen.ts', 'coverage/**'] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -29,7 +29,7 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
     languageOptions: {
       ...tseslint.configs.disableTypeChecked.languageOptions,
-      globals: { console: 'readonly', fetch: 'readonly' },
+      globals: { console: 'readonly', fetch: 'readonly', process: 'readonly' },
     },
   },
 );
