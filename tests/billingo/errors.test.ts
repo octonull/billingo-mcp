@@ -1,5 +1,5 @@
 // tests/billingo/errors.test.ts
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import {
   BillingoApiError,
   BillingoError,
@@ -46,8 +46,8 @@ describe('parseErrorBody', () => {
 
   it('returns a rate limit error for 429 and carries retryAfterMs', () => {
     const err = parseErrorBody(429, { error: { message: 'Too Many Attempts.' } }, 30_000);
-    expect(err).toBeInstanceOf(BillingoRateLimitError);
-    expect((err as BillingoRateLimitError).retryAfterMs).toBe(30_000);
+    assert.instanceOf(err, BillingoRateLimitError);
+    expect(err.retryAfterMs).toBe(30_000);
   });
 
   it('exposes traceId on a rate-limit error, not just inside the message', () => {
@@ -56,9 +56,9 @@ describe('parseErrorBody', () => {
       { error: { message: 'Too Many Attempts.', trace_id: 'rl-999' } },
       30_000,
     );
-    expect(err).toBeInstanceOf(BillingoRateLimitError);
+    assert.instanceOf(err, BillingoRateLimitError);
     expect(err.traceId).toBe('rl-999');
-    expect((err as BillingoRateLimitError).retryAfterMs).toBe(30_000);
+    expect(err.retryAfterMs).toBe(30_000);
   });
 
   it('carries validationErrors through the rate-limit branch, not just plain BillingoApiError', () => {
@@ -81,8 +81,8 @@ describe('parseErrorBody', () => {
 
   it('carries retryAfterMs through the PDF-not-ready branch, since the 202 response documents a Retry-After header', () => {
     const err = parseErrorBody(202, { message: 'Document PDF has not generated yet.' }, 5_000);
-    expect(err).toBeInstanceOf(BillingoPdfNotReadyError);
-    expect((err as BillingoPdfNotReadyError).retryAfterMs).toBe(5_000);
+    assert.instanceOf(err, BillingoPdfNotReadyError);
+    expect(err.retryAfterMs).toBe(5_000);
   });
 
   it('does not classify a 400 mentioning the PDF message as BillingoPdfNotReadyError — the spec only documents this as 202, so a 400 is an ordinary error', () => {
