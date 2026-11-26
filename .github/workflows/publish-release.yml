@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.tag.outputs.version }}
+      commit_sha: ${{ steps.tag.outputs.commit_sha }}
     steps:
       - name: Checkout master
         uses: actions/checkout@v7
@@ -43,6 +44,7 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           TAG="v${VERSION}"
           echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             EXISTING_COMMIT=$(git rev-list -n 1 "$TAG")
             HEAD_COMMIT=$(git rev-parse HEAD)
@@ -80,3 +82,39 @@ jobs:
       commit_sha: ${{ github.sha }}
       version: ${{ needs.publish.outputs.version }}
     secrets: inherit
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: deploy
+    permissions: {}
+    env:
+      HAS_APP_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY != '' }}
+      COMMIT_SHA: ${{ needs.publish.outputs.commit_sha }}
+      VERSION: ${{ needs.publish.outputs.version }}
+      DEPLOY_REPO: ${{ github.repository_owner }}/${{ secrets.DEPLOY_REPO }}
+      DEPLOY_WORKFLOW: ${{ secrets.DEPLOY_WORKFLOW }}
+    steps:
+      - name: Skip without the deploy app
+        if: env.HAS_APP_KEY != 'true'
+        run: |
+          echo "::warning::The deploy app is not configured in the deploy environment, so $VERSION was not deployed. Start the deploy by hand with commit_sha=$COMMIT_SHA."
+
+      - name: Create deploy app token
+        id: app-token
+        if: env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.DEPLOY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ secrets.DEPLOY_REPO }}
+          permission-actions: write
+
+      - name: Start the deploy
+        if: env.HAS_APP_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh workflow run "$DEPLOY_WORKFLOW" --repo "$DEPLOY_REPO" --ref master -f commit_sha="$COMMIT_SHA"
+          echo "Started the $VERSION deploy ($COMMIT_SHA)." >> "$GITHUB_STEP_SUMMARY"
