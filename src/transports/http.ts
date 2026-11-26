@@ -2,7 +2,6 @@
 import { createServer as createHttpServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { BillingoClient } from '../billingo/client.js';
 import { loadHttpConfig, parseBooleanFlag } from '../config.js';
 import type { HttpConfig } from '../config.js';
@@ -104,12 +103,7 @@ export function createHandler(
       void server.close();
     });
 
-    // StreamableHTTPServerTransport implements onclose/onerror/onmessage as accessors
-    // typed `(() => void) | undefined`, while Transport declares them as plain optional
-    // properties (`() => void`). Under exactOptionalPropertyTypes that reads as a real
-    // mismatch even though the two are behaviorally identical; StdioServerTransport
-    // doesn't hit this because it declares those as plain properties instead.
-    await server.connect(transport as Transport);
+    await server.connect(transport);
     await transport.handleRequest(req, res);
   };
 }
