@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.6
+
+[compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.5...v0.1.6)
+
+### 🏡 Chore
+
+- **deps-dev:** Bump the dev-dependencies group with 4 updates ([#37](https://github.com/octonull/billingo-mcp/pull/37))
+
+### 🤖 CI
+
+- Start the deploy from Release Publish after tagging ([#38](https://github.com/octonull/billingo-mcp/pull/38))
+- Build the ghcr image inside Release Publish and stamp its build v… ([#39](https://github.com/octonull/billingo-mcp/pull/39))
+
+### ❤️ Contributors
+
+- Peter Buglavecz <peter.buglavecz@billingo.com>
+
 ## v0.1.5
 
 [compare changes](https://github.com/octonull/billingo-mcp/compare/v0.1.4...v0.1.5)
