@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.tag.outputs.version }}
+      commit_sha: ${{ steps.tag.outputs.commit_sha }}
     steps:
       - name: Checkout master
         uses: actions/checkout@v7
@@ -43,6 +44,7 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           TAG="v${VERSION}"
           echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             EXISTING_COMMIT=$(git rev-list -n 1 "$TAG")
             HEAD_COMMIT=$(git rev-parse HEAD)
@@ -80,3 +82,31 @@ jobs:
       commit_sha: ${{ github.sha }}
       version: ${{ needs.publish.outputs.version }}
     secrets: inherit
+
+  # Starts the mcp.billingo.hu deploy (octonull/billingo-mcp-deploy, deploy-to-ecs.yml)
+  # for the commit just tagged. It runs after the tag exists, so the image's
+  # /build_version gets the release version too; a manual deploy started before
+  # Release Publish built v0.1.5 without it (IT-355, IT-356).
+  #
+  # DEPLOY_DISPATCH_TOKEN is a fine-grained PAT limited to billingo-mcp-deploy with
+  # Actions: Read and write. It is a secret of the `deploy` environment, which only the
+  # master branch may use, so no other workflow or fork PR can read it. Without it the
+  # job only warns: the release itself has already been published by then.
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: deploy
+    permissions: {}
+    steps:
+      - name: Start Deploy MCP Server to ECS
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
+          COMMIT_SHA: ${{ needs.publish.outputs.commit_sha }}
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::DEPLOY_DISPATCH_TOKEN is not set in the deploy environment, so $VERSION was not deployed. Run 'Deploy MCP Server to ECS' in octonull/billingo-mcp-deploy by hand with commit_sha=$COMMIT_SHA."
+            exit 0
+          fi
+          gh workflow run deploy-to-ecs.yml --repo octonull/billingo-mcp-deploy --ref master -f commit_sha="$COMMIT_SHA"
+          echo "Started the $VERSION deploy ($COMMIT_SHA): https://github.com/octonull/billingo-mcp-deploy/actions/workflows/deploy-to-ecs.yml" >> "$GITHUB_STEP_SUMMARY"
