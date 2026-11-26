@@ -121,7 +121,8 @@ env vars (`api_key` → `BILLINGO_API_KEY`, `allow_write` → `BILLINGO_ALLOW_WR
 - **`tests/mcpb/manifest.test.ts` pins the manifest to the code.** A new stdio env var,
   a renamed bin or a new tool category fails it until the manifest follows.
 - CI (`build` job) packs it and runs the server from the unpacked bundle; the Release 2
-  workflow attaches it to the GitHub Release.
+  workflow attaches it to the GitHub Release in a job of its own (`publish-mcpb`), so a
+  failed upload never blocks the image and the deploy, and it can be re-run alone.
 
 ## Error shapes
 
