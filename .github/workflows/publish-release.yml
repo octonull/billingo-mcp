@@ -88,16 +88,31 @@ jobs:
     runs-on: ubuntu-latest
     environment: deploy
     permissions: {}
+    env:
+      HAS_APP_KEY: ${{ secrets.DEPLOY_APP_PRIVATE_KEY != '' }}
+      COMMIT_SHA: ${{ needs.publish.outputs.commit_sha }}
+      VERSION: ${{ needs.publish.outputs.version }}
     steps:
-      - name: Start Deploy MCP Server to ECS
-        env:
-          GH_TOKEN: ${{ secrets.DEPLOY_DISPATCH_TOKEN }}
-          COMMIT_SHA: ${{ needs.publish.outputs.commit_sha }}
-          VERSION: ${{ needs.publish.outputs.version }}
+      - name: Skip without the deploy app
+        if: env.HAS_APP_KEY != 'true'
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::DEPLOY_DISPATCH_TOKEN is not set in the deploy environment, so $VERSION was not deployed. Run 'Deploy MCP Server to ECS' in octonull/billingo-mcp-deploy by hand with commit_sha=$COMMIT_SHA."
-            exit 0
-          fi
+          echo "::warning::The deploy app is not configured in the deploy environment, so $VERSION was not deployed. Run 'Deploy MCP Server to ECS' in octonull/billingo-mcp-deploy by hand with commit_sha=$COMMIT_SHA."
+
+      - name: Create deploy app token
+        id: app-token
+        if: env.HAS_APP_KEY == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.DEPLOY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: octonull
+          repositories: billingo-mcp-deploy
+          permission-actions: write
+
+      - name: Start Deploy MCP Server to ECS
+        if: env.HAS_APP_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
           gh workflow run deploy-to-ecs.yml --repo octonull/billingo-mcp-deploy --ref master -f commit_sha="$COMMIT_SHA"
           echo "Started the $VERSION deploy ($COMMIT_SHA): https://github.com/octonull/billingo-mcp-deploy/actions/workflows/deploy-to-ecs.yml" >> "$GITHUB_STEP_SUMMARY"
