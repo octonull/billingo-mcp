@@ -79,6 +79,18 @@ export const bankTransactionSchema = z.looseObject({
   updated_at: nstr,
 });
 
+/** components.schemas.BankSyncAccount. Unknown values are null, never 0. */
+export const bankSyncAccountSchema = z.looseObject({
+  bank_account_id: z.number(),
+  name: nstr,
+  account_number: nstr,
+  iban: nstr,
+  currency: nstr,
+  balance: nnum,
+  synced_at: nstr,
+  connection: nested({ status: nstr, consent_expires_at: nstr }),
+});
+
 export const documentBlockSchema = z.looseObject({
   id: z.number(),
   name: nstr,

@@ -7,7 +7,7 @@ Guidance for Claude Code (and any other coding agent) working in this repository
 The official Billingo MCP server: an [MCP](https://modelcontextprotocol.io) server exposing
 the [Billingo](https://billingo.hu) invoicing API (v3) as tools for LLM agents. It ships two
 transports — stdio (for desktop MCP clients) and stateless Streamable HTTP (for
-self-hosting) — and 51 tools (24 read, 27 write) covering organizations, partners,
+self-hosting) — and 52 tools (25 read, 27 write) covering organizations, partners,
 products, spendings, bank accounts, bank transactions (preview), document blocks, and documents (including NAV Online
 Számla reporting, exports, and the destructive/write tier).
 
@@ -69,7 +69,7 @@ to know a tool call is happening.
    `BILLINGO_TOOL_CATEGORIES` filters on; a new module's array must be added to a
    category there (a new one or an existing one).
 5. Update the surface assertions in `tests/server/server.test.ts`: the total-count test
-   (`toHaveLength(51)`, `24` read, `27` write) and any per-module test that enumerates
+   (`toHaveLength(52)`, `25` read, `27` write) and any per-module test that enumerates
    tool names. These counts are load-bearing — they are the mechanism that catches a
    tool accidentally being left out of an array or given the wrong scope.
 
@@ -98,7 +98,7 @@ to know a tool call is happening.
 3. **Write tools are filtered out of `tools/list`, not rejected at call time.**
    `filterByScope` in `src/tools/registry.ts` removes every `scope: 'write'` tool from
    the registered set when writes are not enabled — the model never learns they exist.
-   Read-only is the default in both transports. The 24-read/27-write counts in
+   Read-only is the default in both transports. The 25-read/27-write counts in
    `tests/server/server.test.ts` are the regression guard for this; do not weaken them.
 
 4. **Only GET is ever retried.** `BillingoClient#shouldRetry` in `src/billingo/client.ts`

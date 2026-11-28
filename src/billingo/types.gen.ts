@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/bank-sync/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List bank accounts connected to bank sync
+         * @description PREVIEW: available on request; the contract may change. Lists the bank accounts connected to bank sync; these are the ids that GET /bank-sync/transactions accepts in bank_account_id. Sorted by bank_account_id descending. balance is the latest balance reported by the bank; depending on the bank it may already include pending items. synced_at is the last successful sync; the balance may be older. connection.status is the state of the bank connection; connection.consent_expires_at is when the customer's consent must be renewed. They are independent: check both. Unknown values are null, never 0.
+         */
+        get: operations["ListBankSyncAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bank-sync/transactions": {
         parameters: {
             query?: never;
@@ -913,6 +933,49 @@ export interface components {
         ValidationError: {
             field?: string;
             message?: string;
+        };
+        BankSyncAccount: {
+            /** @description The id of the bank account in GET /bank-accounts, accepted by the bank_account_id filter of GET /bank-sync/transactions. */
+            bank_account_id: number;
+            name: string;
+            account_number: string;
+            iban: string;
+            /** @description ISO 4217 code of the balance, from bank sync. It can differ from the currency in GET /bank-accounts. */
+            currency: string | null;
+            /**
+             * Format: float
+             * @description The latest balance reported by the bank; depending on the bank it may already include pending items.
+             */
+            balance: number | null;
+            /**
+             * Format: date-time
+             * @description The last successful sync. The balance may be older.
+             */
+            synced_at: string | null;
+            connection: components["schemas"]["BankSyncAccountConnection"];
+        };
+        /** @description The bank connection the account's data comes through. status and consent_expires_at are independent: check both. */
+        BankSyncAccountConnection: {
+            /**
+             * @description The state of the bank connection as the provider last reported it. inactive or disabled: the bank has to be connected again.
+             * @enum {string|null}
+             */
+            status: "active" | "inactive" | "disabled" | null;
+            /**
+             * Format: date-time
+             * @description When the customer's consent to read the account must be renewed. null when unknown.
+             */
+            consent_expires_at: string | null;
+        };
+        /** @description A object with a data property that contains an array of up to per_page bank accounts connected to bank sync. */
+        BankSyncAccountList: {
+            data?: components["schemas"]["BankSyncAccount"][];
+            total?: number;
+            per_page?: number;
+            current_page?: number;
+            last_page?: number;
+            prev_page_url?: string;
+            next_page_url?: string;
         };
         BankAccount: {
             readonly id?: number;
@@ -1980,6 +2043,43 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ListBankSyncAccount: {
+        parameters: {
+            query?: {
+                page?: number;
+                per_page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success response */
+            200: {
+                headers: {
+                    /** @description Request limit per minute. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The number of requests left for the time window. */
+                    "X-RateLimit-Remaining"?: number;
+                    /** @description The timestamp at which the current rate limit window resets. */
+                    "X-RateLimit-Reset"?: number;
+                    /** @description How many seconds you have to wait before making new request. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankSyncAccountList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            402: components["responses"]["PaymentRequired"];
+            422: components["responses"]["UnprocessableEntity"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["ServerError"];
+        };
+    };
     ListBankTransaction: {
         parameters: {
             query?: {

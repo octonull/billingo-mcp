@@ -88,10 +88,10 @@ describe('createServer with categories', () => {
     expect(names.sort()).toEqual(expected.sort());
   });
 
-  it('lists all 24 read tools when no category is given, in the same order as before', async () => {
+  it('lists all 25 read tools when no category is given, in the same order as before', async () => {
     const { names } = await listTools(false);
     expect(names).toEqual(allTools.filter((t) => t.scope === 'read').map((t) => t.name));
-    expect(names).toHaveLength(24);
+    expect(names).toHaveLength(25);
   });
 
   it('tells the model which groups are loaded, so it can say what is missing', async () => {

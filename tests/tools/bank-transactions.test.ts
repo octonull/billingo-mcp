@@ -33,17 +33,20 @@ const byName = (name: string): AnyToolDefinition => {
 const EMPTY_PAGE = { data: [], total: 0, per_page: 25, current_page: 1, last_page: 1 };
 
 describe('bank transaction tool surface', () => {
-  it('exposes two read tools and no write tool', () => {
+  it('exposes three read tools and no write tool', () => {
     expect(bankTransactionTools.map((t) => `${t.scope}:${t.name}`).sort()).toEqual([
       'read:billingo_get_bank_transaction',
+      'read:billingo_list_bank_sync_accounts',
       'read:billingo_list_bank_transactions',
     ]);
   });
 
-  it('tells the model it is a preview and that text fields are untrusted', () => {
+  it('tells the model it is a preview, and that the bank text fields are untrusted', () => {
     for (const tool of bankTransactionTools) {
       expect(tool.description, tool.name).toContain('PREVIEW');
-      expect(tool.description, tool.name).toContain('untrusted data');
+    }
+    for (const name of ['billingo_list_bank_transactions', 'billingo_get_bank_transaction']) {
+      expect(byName(name).description, name).toContain('untrusted data');
     }
   });
 });
@@ -130,6 +133,35 @@ describe('billingo_get_bank_transaction', () => {
     );
     await expect(byName('billingo_get_bank_transaction').handler({ id: 7 }, ctx)).rejects.toThrow(
       message,
+    );
+  });
+});
+
+describe('billingo_list_bank_sync_accounts', () => {
+  it('pages through /bank-sync/accounts', async () => {
+    let url = '';
+    server.use(
+      http.get('https://api.billingo.hu/v3/bank-sync/accounts', ({ request }) => {
+        url = request.url;
+        return HttpResponse.json({
+          ...EMPTY_PAGE,
+          total: 1,
+          data: [{ bank_account_id: 5, balance: 1234.56, connection: { status: 'active' } }],
+        });
+      }),
+    );
+    const result = await byName('billingo_list_bank_sync_accounts').handler(
+      { page: 2, per_page: 10 },
+      ctx,
+    );
+    expect(new URL(url).searchParams.get('page')).toBe('2');
+    expect(new URL(url).searchParams.get('per_page')).toBe('10');
+    expect(JSON.stringify(result.content)).toContain('1234.56');
+  });
+
+  it('tells the model the ids are the ones the transaction filter accepts', () => {
+    expect(byName('billingo_list_bank_sync_accounts').description).toContain(
+      'billingo_list_bank_transactions accepts in bank_account_id',
     );
   });
 });
