@@ -1,7 +1,9 @@
 // src/transports/http.ts
 import { createServer as createHttpServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { hostHeaderValidation, toNodeHandler } from '@modelcontextprotocol/node';
+import { createMcpHandler } from '@modelcontextprotocol/server';
+import type { AuthInfo } from '@modelcontextprotocol/server';
 import { BillingoClient } from '../billingo/client.js';
 import { loadHttpConfig, parseBooleanFlag } from '../config.js';
 import type { HttpConfig } from '../config.js';
@@ -25,14 +27,55 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
+/** What one request's headers resolved to, carried to the server factory. */
+interface TenantSettings {
+  allowWrite: boolean;
+  categories: ToolCategory[] | undefined;
+}
+
 /**
- * Builds a fresh McpServer per request. This is the stateless design: the API key and
- * write scope come from this request's headers, so nothing is shared between tenants
- * and no credential outlives the request.
+ * `BILLINGO_ALLOWED_HOSTS` entries may carry a port (`localhost:3000`), as the v1 SDK
+ * compared whole `Host` values. The v2 guard compares hostnames only, so drop the port.
+ */
+export function hostnameOf(host: string): string {
+  if (host.startsWith('[')) return host.slice(0, host.indexOf(']') + 1);
+  return host.split(':')[0] ?? host;
+}
+
+/**
+ * The stateless design: every request builds its own McpServer from that request's
+ * headers, so nothing is shared between tenants and no credential outlives the request.
+ *
+ * The headers are checked here, in front of the MCP handler, and handed to the server
+ * factory as `req.auth` (`toNodeHandler` passes it through as `authInfo`). Whatever a
+ * client sends, `req.auth` is overwritten before the handler runs.
+ *
+ * `createMcpHandler` serves both protocol eras on one endpoint: 2026-07-28 requests
+ * (which carry their protocol version in `_meta`) and 2025-era clients, which it answers
+ * through the stateless legacy path, one fresh server per request, as before.
  */
 export function createHandler(
   config: HttpConfig,
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
+  const mcp = toNodeHandler(
+    createMcpHandler(({ authInfo }) => {
+      const tenant = authInfo?.extra as TenantSettings | undefined;
+      if (authInfo === undefined || tenant === undefined) {
+        // Unreachable through createHandler, which always sets req.auth first.
+        throw new Error('billingo-mcp: request reached the MCP handler without an API key');
+      }
+      return createServer({
+        client: new BillingoClient({ apiKey: authInfo.token, baseUrl: config.baseUrl }),
+        allowWrite: tenant.allowWrite,
+        categories: tenant.categories,
+      });
+    }),
+  );
+  const validateHost =
+    config.allowedHosts === undefined
+      ? undefined
+      : hostHeaderValidation(config.allowedHosts.map(hostnameOf));
+
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     if (req.url?.startsWith('/health') === true) {
       sendJson(res, 200, { status: 'ok' });
@@ -49,6 +92,9 @@ export function createHandler(
       sendJson(res, 200, { buildVer });
       return;
     }
+
+    // DNS-rebinding protection: answers 403 itself when the Host is not allowed.
+    if (validateHost !== undefined && !validateHost(req, res)) return;
 
     const apiKey = readHeader(req, API_KEY_HEADER);
     if (apiKey === undefined || apiKey === '') {
@@ -85,26 +131,21 @@ export function createHandler(
       return;
     }
 
-    const allowWrite = parseBooleanFlag(readHeader(req, ALLOW_WRITE_HEADER));
-    const client = new BillingoClient({ apiKey, baseUrl: config.baseUrl });
-    const server = createServer({ client, allowWrite, categories });
-    // sessionIdGenerator is intentionally omitted rather than set to `undefined`: under
-    // exactOptionalPropertyTypes, omitting an optional key and assigning it `undefined`
-    // are different things to the type checker, and the SDK treats them the same at
-    // runtime — "not provided" means stateless mode, which is what we want here.
-    const transport = new StreamableHTTPServerTransport({
-      ...(config.allowedHosts === undefined
-        ? {}
-        : { allowedHosts: config.allowedHosts, enableDnsRebindingProtection: true }),
-    });
-
-    res.on('close', () => {
-      void transport.close();
-      void server.close();
-    });
-
-    await server.connect(transport);
-    await transport.handleRequest(req, res);
+    const tenant: TenantSettings = {
+      allowWrite: parseBooleanFlag(readHeader(req, ALLOW_WRITE_HEADER)),
+      categories,
+    };
+    const auth: AuthInfo = {
+      token: apiKey,
+      clientId: 'billingo-api-key',
+      scopes: [],
+      extra: { ...tenant },
+    };
+    // A server-side IncomingMessage always has a method and url (they are only undefined
+    // on a client-side message), but its type says otherwise and the adapter's does not.
+    const withAuth = req as IncomingMessage & { method: string; url: string; auth?: AuthInfo };
+    withAuth.auth = auth;
+    await mcp(withAuth, res);
   };
 }
 

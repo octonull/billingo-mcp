@@ -1,7 +1,8 @@
 // src/server.ts
 import { readFileSync } from 'node:fs';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { McpServer } from '@modelcontextprotocol/server';
+import type { CallToolResult } from '@modelcontextprotocol/server';
+import { z } from 'zod';
 import { BillingoError, describeError } from './billingo/errors.js';
 import type { BillingoClient } from './billingo/client.js';
 import { errorResult, filterByScope } from './tools/registry.js';
@@ -62,10 +63,20 @@ async function runTool(
   return result;
 }
 
+/**
+ * How long a 2026-07-28 client may reuse `tools/list` and `server/discover` answers
+ * before asking again. The tool set only changes with a new release or a different
+ * connection config (write scope, categories), so an hour is safe. `private`: the list
+ * depends on the caller's own headers, so a shared cache must not hand it to anyone else.
+ * 2025-era responses never carry these fields.
+ */
+export const CACHE_HINT = { ttlMs: 60 * 60 * 1000, cacheScope: 'private' } as const;
+
 export function createServer({ client, allowWrite, categories }: CreateServerOptions): McpServer {
   const server = new McpServer(
     { name: 'billingo', version: SERVER_VERSION },
     {
+      cacheHints: { 'tools/list': CACHE_HINT, 'server/discover': CACHE_HINT },
       instructions:
         'Tools for the Billingo invoicing API. Issued invoices are reported to NAV automatically and cannot be undone — always confirm details with the user before creating, finalizing, cancelling or sending a document. If write tools are absent, the server is in read-only mode and the user must enable writes themselves.' +
         (categories === undefined
@@ -82,7 +93,7 @@ export function createServer({ client, allowWrite, categories }: CreateServerOpt
       {
         title: tool.title,
         description: tool.description,
-        inputSchema: tool.inputSchema,
+        inputSchema: z.object(tool.inputSchema),
         ...(tool.outputSchema === undefined ? {} : { outputSchema: tool.outputSchema }),
         annotations: tool.annotations,
       },

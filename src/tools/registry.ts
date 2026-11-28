@@ -1,5 +1,5 @@
 // src/tools/registry.ts
-import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/server';
 import type { z, ZodRawShape } from 'zod';
 import type { BillingoClient } from '../billingo/client.js';
 import type { ToolErrorDetails } from '../billingo/errors.js';
@@ -95,8 +95,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * `{"error": {code, retryable, status?, retry_after_seconds?, fields?, trace_id?, message}}`,
  * with a stable code a script can branch on.
  *
- * The details are a text block, not `structuredContent`, on purpose: the TypeScript SDK
- * client (1.29) validates `structuredContent` against the tool's outputSchema even when
+ * The details are a text block, not `structuredContent`, on purpose: TypeScript SDK
+ * clients (seen in 1.29) validate `structuredContent` against the tool's outputSchema even when
  * `isError` is true, so a structured error on a tool with an output schema would turn
  * every API error into a protocol error for that client.
  */

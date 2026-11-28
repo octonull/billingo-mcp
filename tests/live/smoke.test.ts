@@ -1,7 +1,6 @@
 // tests/live/smoke.test.ts
 import { afterAll, describe, expect, it } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { BillingoClient } from '../../src/billingo/client.js';
 import { BillingoApiError } from '../../src/billingo/errors.js';
 import { createServer } from '../../src/server.js';

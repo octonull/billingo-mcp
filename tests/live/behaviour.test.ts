@@ -1,8 +1,6 @@
 // tests/live/behaviour.test.ts
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { Client, InMemoryTransport, type CallToolResult } from '@modelcontextprotocol/client';
 import { BillingoClient } from '../../src/billingo/client.js';
 import { BillingoApiError } from '../../src/billingo/errors.js';
 import { createServer } from '../../src/server.js';
@@ -461,7 +459,7 @@ live('live: API behaviours the tools depend on', () => {
     const mcp = new Client({ name: 'live-partial-update', version: '0.0.0' });
     await Promise.all([mcp.connect(clientTransport), server.connect(serverTransport)]);
     const call = async (name: string, args: Record<string, unknown>) => {
-      const result = (await mcp.callTool({ name, arguments: args })) as CallToolResult;
+      const result = await mcp.callTool({ name, arguments: args });
       expect(result.isError, `${name}: ${JSON.stringify(result.content).slice(0, 300)}`).not.toBe(
         true,
       );
@@ -686,10 +684,10 @@ live('live: API behaviours the tools depend on', () => {
     for (const tool of tools.filter((t) => t.outputSchema !== undefined)) {
       if (tool.name === 'billingo_get_spending' && spendingIds.length === 0) continue;
       // The server answers a schema mismatch with an isError "Output validation error".
-      const result = (await mcp.callTool({
+      const result = await mcp.callTool({
         name: tool.name,
         arguments: args[tool.name] ?? {},
-      })) as CallToolResult;
+      });
       const text = result.content.map((c) => (c.type === 'text' ? c.text : '')).join('\n');
       expect(text, tool.name).not.toContain('Output validation error');
       // online-szamla answers 404 for a document never sent to NAV (every sandbox
