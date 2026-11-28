@@ -377,7 +377,12 @@ describe('HTTP transport on the 2026-07-28 protocol revision', () => {
   it('serves a 2026-07-28 client with the read-only tool set by default', async () => {
     await withModernClient({ 'X-Billingo-Api-Key': 'k' }, async (client) => {
       expect(client.getProtocolEra()).toBe('modern');
-      const { tools } = await client.listTools();
+      const list = await client.listTools();
+      // The 2026-07-28 cache hint: clients may reuse the list for an hour, privately.
+      expect(list).toMatchObject({ ttlMs: 3_600_000, cacheScope: 'private' });
+      // Server identity rides in result _meta on this revision.
+      expect(client.getServerVersion()?.name).toBe('billingo');
+      const { tools } = list;
       expect(tools).toHaveLength(24);
       expect(tools.map((t) => t.name)).not.toContain('billingo_create_document');
     });
