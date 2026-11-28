@@ -1,7 +1,8 @@
 // src/server.ts
 import { readFileSync } from 'node:fs';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { McpServer } from '@modelcontextprotocol/server';
+import type { CallToolResult } from '@modelcontextprotocol/server';
+import { z } from 'zod';
 import { BillingoError, describeError } from './billingo/errors.js';
 import type { BillingoClient } from './billingo/client.js';
 import { errorResult, filterByScope } from './tools/registry.js';
@@ -82,7 +83,7 @@ export function createServer({ client, allowWrite, categories }: CreateServerOpt
       {
         title: tool.title,
         description: tool.description,
-        inputSchema: tool.inputSchema,
+        inputSchema: z.object(tool.inputSchema),
         ...(tool.outputSchema === undefined ? {} : { outputSchema: tool.outputSchema }),
         annotations: tool.annotations,
       },

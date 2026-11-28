@@ -197,7 +197,8 @@ docker run -p 3000:3000 ghcr.io/octonull/billingo-mcp:latest
 
 A image **nem tartalmaz beégetett API kulcsot**. A HTTP mód állapotmentes (stateless) és
 kérésenkénti: minden hívás egy fejlécben (header) viszi a Billingo API kulcsot, a
-szerver soha nem tárolja azt. Példahívás, a két Billingo-specifikus fejléccel:
+szerver soha nem tárolja azt. Mindkét transzport az MCP 2026-07-28-as protokollverzióját
+beszéli, és ugyanazon a végponton a régebbi (2025-ös) klienseket is kiszolgálja. Példahívás, a két Billingo-specifikus fejléccel:
 
 ```bash
 curl -X POST http://localhost:3000 \
@@ -242,7 +243,7 @@ hozzáféréshez.
 | `BILLINGO_TOOL_CATEGORIES` | csak stdio | nem      | mind                                  | Vesszővel elválasztott eszközcsoportok, csak ezek töltődnek be: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `bank_transactions`, `document_blocks`, `documents`. Ismeretlen név esetén a szerver el sem indul. |
 | `BILLINGO_BASE_URL`        | mindkettő  | nem      | `https://api.billingo.hu/v3`          | Az API alap URL felülírása, pl. proxy mögé állításhoz.                                                                                                                                                                                   |
 | `PORT`                     | csak HTTP  | nem      | `3000`                                | A HTTP szerver figyelési portja.                                                                                                                                                                                                         |
-| `BILLINGO_ALLOWED_HOSTS`   | csak HTTP  | nem      | nincs beállítva (védelem kikapcsolva) | Vesszővel elválasztott lista az elfogadott `Host` fejléc-értékekről — DNS-rebinding védelem. **Mindig állítsd be, ha a szerver localhoston kívülről is elérhető.**                                                                       |
+| `BILLINGO_ALLOWED_HOSTS`   | csak HTTP  | nem      | nincs beállítva (védelem kikapcsolva) | Vesszővel elválasztott lista az elfogadott `Host` fejléc-hosztnevekről (a port nem számít) — DNS-rebinding védelem. **Mindig állítsd be, ha a szerver localhoston kívülről is elérhető.**                                                |
 
 HTTP módban a hitelesítés és a jogosultsági kör (scope) **kérésenként**, fejlécben
 érkezik:
@@ -617,6 +618,8 @@ docker run -p 3000:3000 ghcr.io/octonull/billingo-mcp:latest
 
 The image ships with **no API key baked in**. HTTP mode is stateless and per-request:
 every call carries the Billingo API key in a header, and the server never stores it.
+Both transports speak MCP protocol revision 2026-07-28 and still serve older (2025-era)
+clients on the same endpoint.
 Example call, showing the two Billingo-specific headers:
 
 ```bash
@@ -660,7 +663,7 @@ claude mcp add --transport http billingo http://localhost:3000 \
 | `BILLINGO_TOOL_CATEGORIES` | stdio only | no       | all                          | Comma-separated tool groups to load, and only these: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `bank_transactions`, `document_blocks`, `documents`. An unknown name stops the server from starting. |
 | `BILLINGO_BASE_URL`        | both       | no       | `https://api.billingo.hu/v3` | Override the API base URL, e.g. to point at a proxy.                                                                                                                                                                            |
 | `PORT`                     | HTTP only  | no       | `3000`                       | Port the HTTP server listens on.                                                                                                                                                                                                |
-| `BILLINGO_ALLOWED_HOSTS`   | HTTP only  | no       | unset (protection disabled)  | Comma-separated list of `Host` header values the server will accept — DNS-rebinding protection. **Set this whenever the server is reachable from outside localhost.**                                                           |
+| `BILLINGO_ALLOWED_HOSTS`   | HTTP only  | no       | unset (protection disabled)  | Comma-separated list of `Host` header hostnames the server will accept (a port is ignored) — DNS-rebinding protection. **Set this whenever the server is reachable from outside localhost.**                                    |
 
 HTTP mode takes credentials and scope **per request**, as headers, instead:
 

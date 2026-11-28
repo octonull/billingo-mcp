@@ -3,8 +3,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { readFileSync } from 'node:fs';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import {
+  Client,
+  InMemoryTransport,
+  ProtocolError,
+  ProtocolErrorCode,
+} from '@modelcontextprotocol/client';
 import { BillingoClient } from '../../src/billingo/client.js';
 import { createServer } from '../../src/server.js';
 import { allTools } from '../../src/tools/index.js';
@@ -98,16 +102,18 @@ describe('scope filtering over a real MCP connection', () => {
   });
 
   it('refuses to call a write tool that was never registered', async () => {
-    // The pinned SDK (1.29.0) turns "tool not found" into a normal CallToolResult with
-    // isError: true (McpServer#createToolError), not a rejected/thrown JSON-RPC error —
-    // so this asserts on the result shape, not a rejection.
+    // SDK v2 rejects a call to an unknown tool with a JSON-RPC InvalidParams error (v1
+    // answered with a CallToolResult carrying isError: true).
     const { client } = await connect(false);
-    const result = await client.callTool({
+    const call = client.callTool({
       name: 'billingo_cancel_document',
       arguments: { id: 1 },
     });
-    expect(result.isError).toBe(true);
-    expect(JSON.stringify(result.content)).toContain('not found');
+    await expect(call).rejects.toBeInstanceOf(ProtocolError);
+    await expect(call).rejects.toMatchObject({
+      code: ProtocolErrorCode.InvalidParams,
+      message: expect.stringContaining('not found') as unknown,
+    });
   });
 
   it('actually calls the API through a registered read tool', async () => {

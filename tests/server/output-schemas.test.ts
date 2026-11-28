@@ -4,9 +4,7 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { Client, InMemoryTransport, type CallToolResult } from '@modelcontextprotocol/client';
 import { BillingoClient } from '../../src/billingo/client.js';
 import { createServer } from '../../src/server.js';
 import { allTools } from '../../src/tools/index.js';
@@ -196,7 +194,7 @@ describe('recorded responses pass the published schemas', () => {
       const client = await connect();
       // The server validates structuredContent against the schema and answers a mismatch
       // with an isError result, so a passing call proves the recorded shape fits.
-      const result = (await client.callTool({ name: c.tool, arguments: c.args })) as CallToolResult;
+      const result = await client.callTool({ name: c.tool, arguments: c.args });
       expect(result.isError).not.toBe(true);
       expect(result.structuredContent).toBeDefined();
     });
@@ -205,10 +203,10 @@ describe('recorded responses pass the published schemas', () => {
   it('wraps the bare payments array as { payments } and keeps the array in the text', async () => {
     api.use(serve('/documents/1/payments', 'payments'));
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_get_document_payments',
       arguments: { id: 1 },
-    })) as CallToolResult;
+    });
     const payments = fixture('payments').body;
     expect(result.structuredContent).toEqual({ payments });
     const text = result.content[0];
@@ -220,10 +218,10 @@ describe('errors from tools with an outputSchema', () => {
   it('arrive as a tool error, not a protocol error, with a JSON block to branch on', async () => {
     api.use(serve('/documents/vendor/missing', 'document_vendor_missing'));
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_get_document',
       arguments: { vendor_id: 'missing' },
-    })) as CallToolResult;
+    });
     expect(result.isError).toBe(true);
     expect(jsonBlock(result).error).toMatchObject({
       code: 'not_found',
@@ -235,10 +233,10 @@ describe('errors from tools with an outputSchema', () => {
   it('report a foreign or unknown id as forbidden, which is what Billingo answers live', async () => {
     api.use(serve('/products/1', 'not_found'));
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_get_product',
       arguments: { id: 1 },
-    })) as CallToolResult;
+    });
     expect(result.isError).toBe(true);
     expect(jsonBlock(result).error).toMatchObject({ code: 'forbidden', status: 403 });
   });
@@ -256,10 +254,10 @@ describe('errors from tools with an outputSchema', () => {
       ),
     );
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_list_spendings',
       arguments: {},
-    })) as CallToolResult;
+    });
     expect(jsonBlock(result).error).toMatchObject({
       code: 'validation_failed',
       fields: [{ field: 'page', message: 'The page must be at least 1.' }],
@@ -273,10 +271,10 @@ describe('errors from tools with an outputSchema', () => {
       ),
     );
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_list_partners',
       arguments: {},
-    })) as CallToolResult;
+    });
     expect(jsonBlock(result).error).toMatchObject({ code: 'rate_limited', retryable: true });
   });
 });
@@ -313,7 +311,7 @@ describe('structuredContent scope', () => {
       http.post(`${BASE}/partners`, () => HttpResponse.json({ id: 9, name: 'Example Kft.' })),
     );
     const client = await connect(true);
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_create_partner',
       arguments: {
         name: 'Example Kft.',
@@ -324,7 +322,7 @@ describe('structuredContent scope', () => {
           address: 'Példa utca 1.',
         },
       },
-    })) as CallToolResult;
+    });
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toBeUndefined();
   });
@@ -336,10 +334,10 @@ describe('structuredContent scope', () => {
       ),
     );
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_check_tax_number',
       arguments: { tax_number: '12345678-2-42' },
-    })) as CallToolResult;
+    });
     expect(result.structuredContent).toBeUndefined();
   });
 });
@@ -359,10 +357,10 @@ describe('schemas are no stricter than the PHP backend', () => {
       ),
     );
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_get_document',
       arguments: { id: 1 },
-    })) as CallToolResult;
+    });
     expect(result.isError).not.toBe(true);
   });
 
@@ -371,10 +369,10 @@ describe('schemas are no stricter than the PHP backend', () => {
       http.get(`${BASE}/documents/1/payments`, () => new HttpResponse(null, { status: 204 })),
     );
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_get_document_payments',
       arguments: { id: 1 },
-    })) as CallToolResult;
+    });
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toEqual({ payments: [] });
   });
@@ -384,10 +382,10 @@ describe('schemas are no stricter than the PHP backend', () => {
       http.get(`${BASE}/documents/1/reminders`, () => new HttpResponse(null, { status: 204 })),
     );
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_get_document_reminders',
       arguments: { id: 1 },
-    })) as CallToolResult;
+    });
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toEqual({});
   });
@@ -399,17 +397,17 @@ describe('retry advice on server errors', () => {
   it('is retryable for a read', async () => {
     api.use(http.get(`${BASE}/documents/1`, fail));
     const client = await connect();
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_get_document',
       arguments: { id: 1 },
-    })) as CallToolResult;
+    });
     expect(jsonBlock(result).error).toMatchObject({ code: 'server_error', retryable: true });
   });
 
   it('is not retryable for an invoice create, whose outcome is unknown', async () => {
     api.use(http.post(`${BASE}/documents`, fail));
     const client = await connect(true);
-    const result = (await client.callTool({
+    const result = await client.callTool({
       name: 'billingo_create_document',
       arguments: {
         partner_id: 1,
@@ -424,7 +422,7 @@ describe('retry advice on server errors', () => {
           { name: 'x', unit_price: 1, unit_price_type: 'net', quantity: 1, unit: 'db', vat: '27%' },
         ],
       },
-    })) as CallToolResult;
+    });
     expect(jsonBlock(result).error).toMatchObject({
       code: 'server_error',
       retryable: false,

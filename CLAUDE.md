@@ -7,7 +7,8 @@ Guidance for Claude Code (and any other coding agent) working in this repository
 The official Billingo MCP server: an [MCP](https://modelcontextprotocol.io) server exposing
 the [Billingo](https://billingo.hu) invoicing API (v3) as tools for LLM agents. It ships two
 transports — stdio (for desktop MCP clients) and stateless Streamable HTTP (for
-self-hosting) — and 51 tools (24 read, 27 write) covering organizations, partners,
+self-hosting), both built on MCP TypeScript SDK v2 (`serveStdio` / `createMcpHandler`) and
+serving protocol revision 2026-07-28 alongside 2025-era clients — and 51 tools (24 read, 27 write) covering organizations, partners,
 products, spendings, bank accounts, bank transactions (preview), document blocks, and documents (including NAV Online
 Számla reporting, exports, and the destructive/write tier).
 

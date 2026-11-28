@@ -2,9 +2,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { createServer as createHttpServer } from 'node:http';
+import { createServer as createHttpServer, request } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { createHandler } from '../../src/transports/http.js';
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import { createHandler, hostnameOf } from '../../src/transports/http.js';
 
 const api = setupServer();
 beforeAll(() => {
@@ -331,5 +332,144 @@ describe('HTTP transport tool categories', () => {
       expect(response.status).toBe(400);
       expect(await response.text()).toContain('Valid: organization');
     }
+  });
+});
+
+describe('HTTP transport on the 2026-07-28 protocol revision', () => {
+  /** Boots the handler and connects an SDK client pinned to the 2026-07-28 revision. */
+  async function withModernClient<T>(
+    headers: Record<string, string>,
+    fn: (client: Client) => Promise<T>,
+  ): Promise<T> {
+    const handler = createHandler({
+      baseUrl: 'https://api.billingo.hu/v3',
+      port: 0,
+      allowedHosts: undefined,
+      commitSha: undefined,
+      buildVersion: undefined,
+    });
+    const node = createHttpServer((req, res) => {
+      void handler(req, res);
+    });
+    await new Promise<void>((resolve) => node.listen(0, resolve));
+    const { port } = node.address() as AddressInfo;
+    const client = new Client(
+      { name: 'probe', version: '0' },
+      { versionNegotiation: { mode: { pin: '2026-07-28' } } },
+    );
+    try {
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${String(port)}/mcp`), {
+          requestInit: { headers },
+        }),
+      );
+      return await fn(client);
+    } finally {
+      await client.close();
+      await new Promise<void>((resolve) =>
+        node.close(() => {
+          resolve();
+        }),
+      );
+    }
+  }
+
+  it('serves a 2026-07-28 client with the read-only tool set by default', async () => {
+    await withModernClient({ 'X-Billingo-Api-Key': 'k' }, async (client) => {
+      expect(client.getProtocolEra()).toBe('modern');
+      const { tools } = await client.listTools();
+      expect(tools).toHaveLength(24);
+      expect(tools.map((t) => t.name)).not.toContain('billingo_create_document');
+    });
+  });
+
+  it('applies the allow-write and category headers to a 2026-07-28 client', async () => {
+    await withModernClient(
+      {
+        'X-Billingo-Api-Key': 'k',
+        'X-Billingo-Allow-Write': 'true',
+        'X-Billingo-Tool-Categories': 'partners',
+      },
+      async (client) => {
+        const { tools } = await client.listTools();
+        expect(tools.map((t) => t.name)).toContain('billingo_create_partner');
+        expect(tools.every((t) => t.name.includes('partner'))).toBe(true);
+      },
+    );
+  });
+
+  it('calls a tool with the key of the request that carried it', async () => {
+    const keysSeen: string[] = [];
+    api.use(
+      http.get('https://api.billingo.hu/v3/organization', ({ request }) => {
+        keysSeen.push(request.headers.get('X-API-KEY') ?? '(none)');
+        return HttpResponse.json({ tax_code: '12345678-1-42' });
+      }),
+    );
+    for (const key of ['tenant-a', 'tenant-b']) {
+      await withModernClient({ 'X-Billingo-Api-Key': key }, async (client) => {
+        const result = await client.callTool({ name: 'billingo_get_organization', arguments: {} });
+        expect(result.isError).not.toBe(true);
+      });
+    }
+    expect(keysSeen).toEqual(['tenant-a', 'tenant-b']);
+  });
+});
+
+describe('HTTP transport DNS-rebinding protection', () => {
+  it('rejects a Host outside BILLINGO_ALLOWED_HOSTS and accepts one inside it', async () => {
+    const handler = createHandler({
+      baseUrl: 'https://api.billingo.hu/v3',
+      port: 0,
+      // A configured port is ignored: the guard compares hostnames.
+      allowedHosts: ['mcp.example.com:443', '127.0.0.1'],
+      commitSha: undefined,
+      buildVersion: undefined,
+    });
+    const node = createHttpServer((req, res) => {
+      void handler(req, res);
+    });
+    await new Promise<void>((resolve) => node.listen(0, resolve));
+    const { port } = node.address() as AddressInfo;
+    const post = (host: string): Promise<number> =>
+      new Promise((resolve, reject) => {
+        const req = request(
+          {
+            host: '127.0.0.1',
+            port,
+            path: '/mcp',
+            method: 'POST',
+            headers: {
+              Host: host,
+              'Content-Type': 'application/json',
+              Accept: 'application/json, text/event-stream',
+              'X-Billingo-Api-Key': 'k',
+            },
+          },
+          (res) => {
+            res.resume();
+            resolve(res.statusCode ?? 0);
+          },
+        );
+        req.on('error', reject);
+        req.end(JSON.stringify(initialize));
+      });
+    try {
+      expect(await post('evil.example.com')).toBe(403);
+      expect(await post('mcp.example.com')).toBe(200);
+      expect(await post(`127.0.0.1:${String(port)}`)).toBe(200);
+    } finally {
+      await new Promise<void>((resolve) =>
+        node.close(() => {
+          resolve();
+        }),
+      );
+    }
+  });
+
+  it('strips the port from host entries, IPv6 included', () => {
+    expect(hostnameOf('localhost:3000')).toBe('localhost');
+    expect(hostnameOf('mcp.example.com')).toBe('mcp.example.com');
+    expect(hostnameOf('[::1]:3000')).toBe('[::1]');
   });
 });
