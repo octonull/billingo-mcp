@@ -140,7 +140,11 @@ export type ToolErrorCode =
   | 'client_error'
   | 'invalid_arguments'
   | 'export_pending'
-  | 'export_failed';
+  | 'export_failed'
+  /** The user declined the confirmation form for an irreversible write. Nothing was sent. */
+  | 'not_confirmed'
+  /** An identical non-repeatable call is running or just succeeded. Nothing was sent. */
+  | 'duplicate_call';
 
 /** The `error` object in the JSON block of a failed tool call (see errorResult). */
 export interface ToolErrorDetails {

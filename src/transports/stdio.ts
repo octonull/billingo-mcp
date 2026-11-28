@@ -3,7 +3,8 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import type { McpServer } from '@modelcontextprotocol/server';
 import { BillingoClient } from '../billingo/client.js';
 import { loadStdioConfig } from '../config.js';
-import { createServer } from '../server.js';
+import { createServer, tenantId } from '../server.js';
+import { DuplicateGuard } from '../tools/safeguards.js';
 
 /**
  * Reads the stdio config and returns a factory for the server, not the server itself:
@@ -16,12 +17,18 @@ export function buildStdioServer(env: NodeJS.ProcessEnv): {
 } {
   const config = loadStdioConfig(env);
   const client = new BillingoClient({ apiKey: config.apiKey, baseUrl: config.baseUrl });
+  // One guard for the process, shared by every server instance serveStdio builds.
+  const duplicateGuard = new DuplicateGuard();
+  const tenant = tenantId(config.apiKey);
   return {
     createServer: () =>
       createServer({
         client,
         allowWrite: config.allowWrite,
         categories: config.categories,
+        confirmWrites: config.confirmWrites,
+        duplicateGuard,
+        tenant,
       }),
     allowWrite: config.allowWrite,
   };

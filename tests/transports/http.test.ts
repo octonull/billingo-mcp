@@ -478,3 +478,163 @@ describe('HTTP transport DNS-rebinding protection', () => {
     expect(hostnameOf('[::1]:3000')).toBe('[::1]');
   });
 });
+
+describe('HTTP transport safeguards', () => {
+  const invoice = {
+    partner_id: 1,
+    block_id: 2,
+    type: 'invoice',
+    fulfillment_date: '2026-11-28',
+    due_date: '2026-12-05',
+    payment_method: 'wire_transfer',
+    language: 'hu',
+    currency: 'HUF',
+    items: [
+      {
+        name: 'Consulting',
+        unit_price: 1000,
+        unit_price_type: 'net',
+        quantity: 1,
+        unit: 'db',
+        vat: '27%',
+      },
+    ],
+  };
+
+  /** One handler (so one duplicate guard), any number of clients. */
+  async function withHandler<T>(fn: (port: number) => Promise<T>): Promise<T> {
+    const handler = createHandler({
+      baseUrl: 'https://api.billingo.hu/v3',
+      port: 0,
+      allowedHosts: undefined,
+      commitSha: undefined,
+      buildVersion: undefined,
+    });
+    const node = createHttpServer((req, res) => {
+      void handler(req, res);
+    });
+    await new Promise<void>((resolve) => node.listen(0, resolve));
+    try {
+      return await fn((node.address() as AddressInfo).port);
+    } finally {
+      await new Promise<void>((resolve) =>
+        node.close(() => {
+          resolve();
+        }),
+      );
+    }
+  }
+
+  async function client(
+    port: number,
+    mode: 'legacy' | { pin: '2026-07-28' },
+    headers: Record<string, string>,
+    asked: string[],
+  ): Promise<Client> {
+    const c = new Client(
+      { name: 'probe', version: '0' },
+      { versionNegotiation: { mode }, capabilities: { elicitation: { form: {} } } },
+    );
+    c.setRequestHandler('elicitation/create', (request) => {
+      asked.push(request.params.message);
+      return Promise.resolve({ action: 'accept', content: { confirm: true } });
+    });
+    await c.connect(
+      new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${String(port)}/mcp`), {
+        requestInit: {
+          headers: { 'X-Billingo-Api-Key': 'k', 'X-Billingo-Allow-Write': 'true', ...headers },
+        },
+      }),
+    );
+    return c;
+  }
+
+  let posts = 0;
+  const issuing = (): void => {
+    posts = 0;
+    api.use(
+      http.post('https://api.billingo.hu/v3/documents', () => {
+        posts += 1;
+        return HttpResponse.json({ id: 500 + posts }, { status: 201 });
+      }),
+    );
+  };
+
+  it('asks a 2026-07-28 client to confirm, in-band, before issuing', async () => {
+    issuing();
+    await withHandler(async (port) => {
+      const asked: string[] = [];
+      const c = await client(port, { pin: '2026-07-28' }, {}, asked);
+      const result = await c.callTool({ name: 'billingo_create_document', arguments: invoice });
+      expect(result.isError).not.toBe(true);
+      expect(asked).toHaveLength(1);
+      expect(posts).toBe(1);
+      await c.close();
+    });
+  });
+
+  it('skips the question when X-Billingo-Confirm-Writes is false', async () => {
+    issuing();
+    await withHandler(async (port) => {
+      const asked: string[] = [];
+      const c = await client(
+        port,
+        { pin: '2026-07-28' },
+        { 'X-Billingo-Confirm-Writes': 'false' },
+        asked,
+      );
+      await c.callTool({ name: 'billingo_create_document', arguments: invoice });
+      expect(asked).toEqual([]);
+      expect(posts).toBe(1);
+      await c.close();
+    });
+  });
+
+  it('lets a 2025-era client through unasked: stateless HTTP has no channel to ask on', async () => {
+    issuing();
+    await withHandler(async (port) => {
+      const asked: string[] = [];
+      const c = await client(port, 'legacy', {}, asked);
+      const result = await c.callTool({ name: 'billingo_create_document', arguments: invoice });
+      expect(result.isError).not.toBe(true);
+      expect(asked).toEqual([]);
+      expect(posts).toBe(1);
+      await c.close();
+    });
+  });
+
+  it('refuses a resend from a new connection with the same key, but not another tenant', async () => {
+    issuing();
+    await withHandler(async (port) => {
+      const first = await client(
+        port,
+        { pin: '2026-07-28' },
+        { 'X-Billingo-Confirm-Writes': 'false' },
+        [],
+      );
+      await first.callTool({ name: 'billingo_create_document', arguments: invoice });
+      await first.close();
+      const resend = await client(
+        port,
+        { pin: '2026-07-28' },
+        { 'X-Billingo-Confirm-Writes': 'false' },
+        [],
+      );
+      const again = await resend.callTool({ name: 'billingo_create_document', arguments: invoice });
+      expect(JSON.stringify(again.content)).toContain('duplicate_call');
+      expect(JSON.stringify(again.content)).toContain('id 501');
+      await resend.close();
+      const other = await client(
+        port,
+        { pin: '2026-07-28' },
+        { 'X-Billingo-Confirm-Writes': 'false', 'X-Billingo-Api-Key': 'other-tenant' },
+        [],
+      );
+      expect(
+        (await other.callTool({ name: 'billingo_create_document', arguments: invoice })).isError,
+      ).not.toBe(true);
+      expect(posts).toBe(2);
+      await other.close();
+    });
+  });
+});

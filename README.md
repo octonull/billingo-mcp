@@ -241,6 +241,7 @@ hozzáféréshez.
 | `BILLINGO_API_KEY`         | csak stdio | igen     | —                                     | A Billingo API kulcsod. HTTP módban nem ezt olvassa a szerver — lásd lent.                                                                                                                                                               |
 | `BILLINGO_ALLOW_WRITE`     | csak stdio | nem      | `false`                               | `"true"` vagy `"1"` érték engedélyezi az író (write) eszközöket ennél a stdio folyamatnál. Bármi más érték (elgépelést is beleértve) `false`-nak számít.                                                                                 |
 | `BILLINGO_TOOL_CATEGORIES` | csak stdio | nem      | mind                                  | Vesszővel elválasztott eszközcsoportok, csak ezek töltődnek be: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `bank_transactions`, `document_blocks`, `documents`. Ismeretlen név esetén a szerver el sem indul. |
+| `BILLINGO_CONFIRM_WRITES`  | csak stdio | nem      | `true`                                | Visszavonhatatlan írás (számla kiállítása, storno, küldés, törlés) előtt a kliens megerősítést kér a felhasználótól, ha tud űrlapot mutatni (MCP elicitation). Csak `"false"`, `"0"`, `"no"` vagy `"off"` kapcsolja ki.                  |
 | `BILLINGO_BASE_URL`        | mindkettő  | nem      | `https://api.billingo.hu/v3`          | Az API alap URL felülírása, pl. proxy mögé állításhoz.                                                                                                                                                                                   |
 | `PORT`                     | csak HTTP  | nem      | `3000`                                | A HTTP szerver figyelési portja.                                                                                                                                                                                                         |
 | `BILLINGO_ALLOWED_HOSTS`   | csak HTTP  | nem      | nincs beállítva (védelem kikapcsolva) | Vesszővel elválasztott lista az elfogadott `Host` fejléc-hosztnevekről (a port nem számít) — DNS-rebinding védelem. **Mindig állítsd be, ha a szerver localhoston kívülről is elérhető.**                                                |
@@ -252,6 +253,7 @@ HTTP módban a hitelesítés és a jogosultsági kör (scope) **kérésenként**
 | ---------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `X-Billingo-Api-Key`         | igen     | A kérésnél használandó Billingo API kulcs. Soha nem kerül tárolásra.                                                                                                                                                       |
 | `X-Billingo-Allow-Write`     | nem      | `"true"` vagy `"1"` engedélyezi az író eszközöket, de csak erre az egy kérésre.                                                                                                                                            |
+| `X-Billingo-Confirm-Writes`  | nem      | `"false"` kikapcsolja a megerősítő űrlapot erre a kérésre (lásd `BILLINGO_CONFIRM_WRITES`).                                                                                                                                |
 | `X-Billingo-Tool-Categories` | nem      | Ugyanaz a csoportlista, mint a `BILLINGO_TOOL_CATEGORIES`, erre az egy kérésre. Fejlécet nem kezelő kliensnél `?categories=documents,partners` a URL-ben; ha mindkettő meg van adva, a fejléc számít. Ismeretlen név: 400. |
 
 ⬆️ [Ugrás az elejére](#tartalomjegyzék)
@@ -272,6 +274,18 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
   Egy hibás számla egyetlen orvoslása a storno (érvénytelenítés) — de **a storno maga
   is végleges**: örökre érvényteleníti a számlát, és ez is jelentésre kerül a NAV felé.
   Egy már kiállított számlára nincs "törlés".
+- **Megerősítés visszavonhatatlan lépés előtt.** Számla kiállítása, véglegesítése,
+  stornózása, e-mailben küldése és a törlések előtt a szerver megáll, és a kliens egy
+  űrlapon megmutatja a felhasználónak, mi fog történni (MCP elicitation; a 2026-07-28-as
+  protokollban kérésen belül, több körben). Elutasításnál semmi nem megy a Billingóhoz.
+  Piszkozatnál és díjbekérőnél nem kérdez. Olyan kliensnél, amely nem tud űrlapot
+  mutatni (és 2025-ös HTTP klienseknél), a hívás a korábbiak szerint fut le.
+- **Véletlen dupla kiállítás elleni védelem.** Ha egy hívás közben megszakad a
+  kapcsolat, a 2026-07-28-as protokoll szerint a kliens újraküldi. Egy azonos
+  kiállító, stornózó vagy küldő hívást ugyanazzal a kulccsal a szerver 10 percig
+  visszautasít (`duplicate_call`, az első hívás eredményének azonosítójával), hacsak
+  nem `allow_duplicate: true`-val jön. A memória folyamatonként él: több replika
+  egymás hívásait nem látja.
 - **A HTTP mód TLS-t igényel.** Az API kulcs minden kérésnél az `X-Billingo-Api-Key`
   fejlécben utazik. Zárd le a TLS-t a konténer előtt (reverse proxy, load balancer,
   vagy a platform ingressze) — soha ne futtasd a HTTP módot titkosítatlan HTTP-n,
@@ -393,7 +407,9 @@ szükséges csoportok töltődnek be.
   Kódok: `bad_request`, `unauthorized`, `nav_connection_required`,
   `subscription_required`, `forbidden`, `not_found`, `validation_failed`, `rate_limited`,
   `pdf_not_ready`, `server_error`, `api_error`, `client_error`, `invalid_arguments`,
-  `export_pending`, `export_failed`. Nem idempotens eszköz szerverhibájánál a `retryable`
+  `export_pending`, `export_failed`, `not_confirmed` (a felhasználó nem erősítette meg;
+  semmi nem ment el), `duplicate_call` (azonos hívás fut vagy épp sikerült; semmi nem
+  ment el). Nem idempotens eszköz szerverhibájánál a `retryable`
   sosem igaz: ilyenkor `outcome_unknown` jelzi, hogy a számla akár ki is állt, ezért
   újrapróbálás előtt `vendor_id` alapján ellenőrizd. Egy újrapróbált törlés
   `not_found` választ adhat, ha az első kísérlet mégis lefutott. Az SDK bemeneti validációs hibái
@@ -661,6 +677,7 @@ claude mcp add --transport http billingo http://localhost:3000 \
 | `BILLINGO_API_KEY`         | stdio only | yes      | —                            | Your Billingo API key. Not read in HTTP mode — see below.                                                                                                                                                                       |
 | `BILLINGO_ALLOW_WRITE`     | stdio only | no       | `false`                      | `"true"` or `"1"` enables write tools for this stdio process. Any other value (including a typo) is treated as `false`.                                                                                                         |
 | `BILLINGO_TOOL_CATEGORIES` | stdio only | no       | all                          | Comma-separated tool groups to load, and only these: `organization`, `partners`, `products`, `spendings`, `bank_accounts`, `bank_transactions`, `document_blocks`, `documents`. An unknown name stops the server from starting. |
+| `BILLINGO_CONFIRM_WRITES`  | stdio only | no       | `true`                       | Before an irreversible write (issuing, storno, sending, deleting) the client asks the user to confirm, when it can show a form (MCP elicitation). Only `"false"`, `"0"`, `"no"` or `"off"` turn it off.                         |
 | `BILLINGO_BASE_URL`        | both       | no       | `https://api.billingo.hu/v3` | Override the API base URL, e.g. to point at a proxy.                                                                                                                                                                            |
 | `PORT`                     | HTTP only  | no       | `3000`                       | Port the HTTP server listens on.                                                                                                                                                                                                |
 | `BILLINGO_ALLOWED_HOSTS`   | HTTP only  | no       | unset (protection disabled)  | Comma-separated list of `Host` header hostnames the server will accept (a port is ignored) — DNS-rebinding protection. **Set this whenever the server is reachable from outside localhost.**                                    |
@@ -671,6 +688,7 @@ HTTP mode takes credentials and scope **per request**, as headers, instead:
 | ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `X-Billingo-Api-Key`         | yes      | The Billingo API key to use for this request. Never stored.                                                                                                                                                       |
 | `X-Billingo-Allow-Write`     | no       | `"true"` or `"1"` enables write tools for this request only.                                                                                                                                                      |
+| `X-Billingo-Confirm-Writes`  | no       | `"false"` turns the confirmation form off for this request (see `BILLINGO_CONFIRM_WRITES`).                                                                                                                       |
 | `X-Billingo-Tool-Categories` | no       | The same group list as `BILLINGO_TOOL_CATEGORIES`, for this request. Clients that cannot set a header can use `?categories=documents,partners` in the URL; when both are set, the header wins. Unknown name: 400. |
 
 ⬆️ [Back to top](#tartalomjegyzék)
@@ -689,6 +707,17 @@ Read this section before exposing the server to anything.
   immediately and is not reversible. The only remedy for a wrong invoice is a storno
   (cancellation) — and **a storno is itself irreversible**: it voids the invoice
   permanently and is also reported to NAV. There is no "delete" for an issued invoice.
+- **Confirmation before irreversible steps.** Before issuing, finalizing, cancelling
+  (storno) or e-mailing a document, and before deletes, the server pauses and the client
+  shows the user what is about to happen in a form (MCP elicitation; in-band
+  multi-round-trip on protocol 2026-07-28). If the user declines, nothing reaches
+  Billingo. Drafts and proformas are not asked about. Clients that cannot show a form
+  (and 2025-era HTTP clients) run the call as before.
+- **Protection against issuing twice.** If a connection drops mid-call, a 2026-07-28
+  client must send the call again. An identical issuing, storno or sending call with the
+  same key is refused for 10 minutes (`duplicate_call`, naming the id the first call
+  produced) unless it carries `allow_duplicate: true`. The memory is per process:
+  replicas behind a load balancer do not see each other's calls.
 - **HTTP mode requires TLS.** The API key travels in the `X-Billingo-Api-Key` header on
   every request. Terminate TLS in front of the container (a reverse proxy, load
   balancer, or platform ingress) — never run HTTP mode over plain HTTP outside a
@@ -808,7 +837,9 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
   `bad_request`, `unauthorized`, `nav_connection_required`, `subscription_required`,
   `forbidden`, `not_found`, `validation_failed`, `rate_limited`, `pdf_not_ready`,
   `server_error`, `api_error`, `client_error`, `invalid_arguments`, `export_pending`,
-  `export_failed`. `retryable` is never true for a server error on a tool that is not
+  `export_failed`, `not_confirmed` (the user did not confirm; nothing was sent),
+  `duplicate_call` (an identical call is running or just succeeded; nothing was sent).
+  `retryable` is never true for a server error on a tool that is not
   idempotent: there `outcome_unknown` is set instead, because the invoice may already
   have been issued, so check by `vendor_id` before trying again. A retried delete may
   answer `not_found` when the first attempt went through. Input-validation errors

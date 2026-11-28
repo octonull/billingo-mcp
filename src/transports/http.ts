@@ -5,15 +5,18 @@ import { hostHeaderValidation, toNodeHandler } from '@modelcontextprotocol/node'
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import type { AuthInfo } from '@modelcontextprotocol/server';
 import { BillingoClient } from '../billingo/client.js';
-import { loadHttpConfig, parseBooleanFlag } from '../config.js';
+import { loadHttpConfig, parseBooleanFlag, parseOptOutFlag } from '../config.js';
 import type { HttpConfig } from '../config.js';
-import { createServer } from '../server.js';
+import { createServer, tenantId } from '../server.js';
+import { DuplicateGuard } from '../tools/safeguards.js';
 import { parseToolCategories } from '../tools/index.js';
 import type { ToolCategory } from '../tools/index.js';
 
 export const API_KEY_HEADER = 'x-billingo-api-key';
 export const ALLOW_WRITE_HEADER = 'x-billingo-allow-write';
 export const TOOL_CATEGORIES_HEADER = 'x-billingo-tool-categories';
+/** "false" turns off the confirmation form for irreversible writes (on by default). */
+export const CONFIRM_WRITES_HEADER = 'x-billingo-confirm-writes';
 /** Same list as the header, for clients that can set a URL but not a header. */
 export const TOOL_CATEGORIES_QUERY = 'categories';
 
@@ -31,6 +34,7 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 interface TenantSettings {
   allowWrite: boolean;
   categories: ToolCategory[] | undefined;
+  confirmWrites: boolean;
 }
 
 /**
@@ -57,6 +61,9 @@ export function hostnameOf(host: string): string {
 export function createHandler(
   config: HttpConfig,
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
+  // Every request gets a fresh server, so the memory of recent calls lives here, shared
+  // by all requests of this process and keyed by a hash of each API key.
+  const duplicateGuard = new DuplicateGuard();
   const mcp = toNodeHandler(
     createMcpHandler(({ authInfo }) => {
       const tenant = authInfo?.extra as TenantSettings | undefined;
@@ -68,6 +75,9 @@ export function createHandler(
         client: new BillingoClient({ apiKey: authInfo.token, baseUrl: config.baseUrl }),
         allowWrite: tenant.allowWrite,
         categories: tenant.categories,
+        confirmWrites: tenant.confirmWrites,
+        duplicateGuard,
+        tenant: tenantId(authInfo.token),
       });
     }),
   );
@@ -134,6 +144,7 @@ export function createHandler(
     const tenant: TenantSettings = {
       allowWrite: parseBooleanFlag(readHeader(req, ALLOW_WRITE_HEADER)),
       categories,
+      confirmWrites: parseOptOutFlag(readHeader(req, CONFIRM_WRITES_HEADER)),
     };
     const auth: AuthInfo = {
       token: apiKey,

@@ -64,13 +64,28 @@ export class BillingoClient {
   readonly #fetch: typeof fetch;
   readonly #maxRetries: number;
   readonly #sleep: (ms: number) => Promise<void>;
+  readonly #options: BillingoClientOptions;
+  #signal: AbortSignal | undefined;
 
   constructor(options: BillingoClientOptions) {
+    this.#options = options;
     this.#apiKey = options.apiKey;
     this.#baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.#fetch = options.fetchImpl ?? globalThis.fetch;
     this.#maxRetries = options.maxRetries ?? 3;
     this.#sleep = options.sleep ?? defaultSleep;
+  }
+
+  /**
+   * A client whose GET requests (and the waits between their retries) stop when
+   * `signal` fires: the MCP client cancelled the call or went away, so nobody is
+   * waiting for the answer. Writes ignore it on purpose: abandoning a POST after it was
+   * sent would leave it unknown whether Billingo issued the document.
+   */
+  withSignal(signal: AbortSignal): BillingoClient {
+    const scoped = new BillingoClient(this.#options);
+    scoped.#signal = signal;
+    return scoped;
   }
 
   get<T>(path: string, opts: RequestOptions = {}): Promise<T> {
@@ -136,6 +151,8 @@ export class BillingoClient {
     const url = `${this.#baseUrl}${path}${buildQuery(opts.query)}`;
     const headers: Record<string, string> = { 'X-API-KEY': this.#apiKey, Accept: accept };
     const init: RequestInit = { method, headers };
+    const signal = method === 'GET' ? this.#signal : undefined;
+    if (signal !== undefined) init.signal = signal;
     if (opts.body !== undefined) {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(opts.body);
@@ -143,6 +160,7 @@ export class BillingoClient {
 
     let attempt = 0;
     for (;;) {
+      signal?.throwIfAborted();
       const response = await this.#fetch(url, init);
       if (response.ok && response.status !== notReadyStatus) return response;
 

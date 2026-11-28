@@ -27,6 +27,7 @@ describe('loadStdioConfig', () => {
       baseUrl: 'https://api.billingo.hu/v3',
       allowWrite: false,
       categories: undefined,
+      confirmWrites: true,
     });
   });
 
