@@ -13,14 +13,14 @@
 <a href="#-fejlesztés"><img src="https://img.shields.io/badge/TypeScript-5.9.3%20(pinned)-3178C6?logo=typescript&logoColor=white" alt="TypeScript 5.9.3, pinned"></a>
 <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-stdio%20%2B%20HTTP-234232" alt="MCP: stdio and Streamable HTTP"></a>
 <br>
-<a href="#-eszközök"><img src="https://img.shields.io/badge/tools-24%20read%20%2F%2027%20write-blue" alt="51 tools: 24 read, 27 write"></a>
+<a href="#-eszközök"><img src="https://img.shields.io/badge/tools-25%20read%20%2F%2027%20write-blue" alt="52 tools: 25 read, 27 write"></a>
 <a href="#-biztonság"><img src="https://img.shields.io/badge/default-read--only-success" alt="Read-only by default"></a>
 </p>
 
 <p align="center">🇭🇺 Magyarul · <a href="#english">🇬🇧 English</a></p>
 
 A **hivatalos** [Billingo](https://billingo.hu) [MCP](https://modelcontextprotocol.io)
-szerver — 51 eszköz (tool) a Billingo v3 számlázási API felett, stdio (asztali) és
+szerver — 52 eszköz (tool) a Billingo v3 számlázási API felett, stdio (asztali) és
 Streamable HTTP (önállóan üzemeltethető) kliensekhez. MIT licenc alatt, önállóan
 üzemeltethető. Ez az első hivatalos Billingo SDK vagy MCP szerver — korábban nem
 létezett ilyen.
@@ -181,8 +181,8 @@ küldhessen el vagy storno­zhasson — lásd a [Biztonság](#-biztonság) szaka
 olyan konfigurációs fájlok, mint a `claude_desktop_config.json`, sima szövegként
 tárolódnak, tehát a kulcs titkosítatlanul áll a lemezen.
 
-Ellenőrzés: a kliensnek read-only módban **24 eszközt** kell listáznia, `"true"`-ra
-állított `BILLINGO_ALLOW_WRITE` mellett pedig **51-et**. Ha nem talál eszközt, nézd meg a
+Ellenőrzés: a kliensnek read-only módban **25 eszközt** kell listáznia, `"true"`-ra
+állított `BILLINGO_ALLOW_WRITE` mellett pedig **52-t**. Ha nem talál eszközt, nézd meg a
 kliens naplóját (macOS-en `~/Library/Logs/Claude/mcp-server-billingo.log`) — a szerver
 `{"name":"billingo","version":"0.1.0"}` néven mutatkozik be. Ha ott más név szerepel,
 akkor a kliens egy másik, ugyanezen a néven regisztrált szerverhez beszél.
@@ -287,7 +287,7 @@ Ezt a szakaszt olvasd el, mielőtt bárkinek elérhetővé teszed a szervert.
 
 ## 🧰 Eszközök
 
-Összesen 51 eszköz: 24 olvasó (mindig látható), 27 író (csak akkor látható, ha az
+Összesen 52 eszköz: 25 olvasó (mindig látható), 27 író (csak akkor látható, ha az
 írás engedélyezve van). Ha egy kliens minden eszköz sémáját a promptba teszi, a
 `BILLINGO_TOOL_CATEGORIES` (HTTP-n `X-Billingo-Tool-Categories`) beállítással csak a
 szükséges csoportok töltődnek be.
@@ -336,6 +336,7 @@ szükséges csoportok töltődnek be.
 
 - `billingo_list_bank_transactions` — A bankszámlák könyvelt tranzakcióinak listázása dátum, bankszámla, irány, párosítási státusz és összeg szerint.
 - `billingo_get_bank_transaction` — Egy banki tranzakció lekérése.
+- `billingo_list_bank_sync_accounts` — A bankszinkronba kötött bankszámlák egyenleggel, az utolsó szinkron idejével, a bankkapcsolat állapotával és a banki hozzájárulás lejáratával.
 
 **Dokumentumblokkok** (1 olvasó, 1 író)
 
@@ -464,7 +465,7 @@ MIT — lásd a [LICENSE](LICENSE) fájlt. Copyright (c) 2026 Billingo Technolog
 # English
 
 The **official** [Billingo](https://billingo.hu) [MCP](https://modelcontextprotocol.io)
-server — 51 tools over the Billingo invoicing API v3, for stdio (desktop) and
+server — 52 tools over the Billingo invoicing API v3, for stdio (desktop) and
 Streamable HTTP (self-hosted) clients. MIT-licensed and self-hostable. There was no
 official Billingo SDK or MCP server before this — it is the first.
 
@@ -601,7 +602,7 @@ be able to create, modify, send, or cancel documents — see [Security](#-securi
 that config files like `claude_desktop_config.json` are stored in plain text, so the key
 sits unencrypted on disk.
 
-To check it worked: the client should list **24 tools** in read-only mode, or **51** with
+To check it worked: the client should list **25 tools** in read-only mode, or **52** with
 `BILLINGO_ALLOW_WRITE` set to `"true"`. If it reports no tools, check the client's log
 (on macOS, `~/Library/Logs/Claude/mcp-server-billingo.log`) — the server identifies
 itself as `{"name":"billingo","version":"0.1.0"}`. A different name there means the
@@ -701,7 +702,7 @@ Read this section before exposing the server to anything.
 
 ## 🧰 Tools
 
-51 tools total: 24 read (always visible), 27 write (visible only with writes enabled).
+52 tools total: 25 read (always visible), 27 write (visible only with writes enabled).
 If your client puts every tool schema into the prompt, load only the groups you need
 with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 
@@ -749,6 +750,7 @@ with `BILLINGO_TOOL_CATEGORIES` (over HTTP: `X-Billingo-Tool-Categories`).
 
 - `billingo_list_bank_transactions` — List the booked transactions of the bank accounts, by date, bank account, direction, pairing status and amount.
 - `billingo_get_bank_transaction` — Get a single bank transaction.
+- `billingo_list_bank_sync_accounts` — List the bank accounts connected to bank sync, with balance, last sync, connection status and consent expiry.
 
 **Document blocks** (1 read, 1 write)
 

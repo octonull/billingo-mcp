@@ -1,0 +1,39 @@
+{
+  "status": 200,
+  "body": {
+    "total": 2,
+    "per_page": 25,
+    "current_page": 1,
+    "last_page": 1,
+    "prev_page_url": null,
+    "next_page_url": null,
+    "data": [
+      {
+        "bank_account_id": 285667,
+        "name": "Devizaszámla",
+        "account_number": "11773016-11111018-00000000",
+        "iban": "HU42117730161111101800000000",
+        "currency": "EUR",
+        "balance": 1234.56,
+        "synced_at": "2026-11-28T06:12:00+01:00",
+        "connection": {
+          "status": "active",
+          "consent_expires_at": "2027-01-15T00:00:00+01:00"
+        }
+      },
+      {
+        "bank_account_id": 285666,
+        "name": "Fő számla",
+        "account_number": "11773016-11111018-00000000",
+        "iban": "",
+        "currency": null,
+        "balance": null,
+        "synced_at": null,
+        "connection": {
+          "status": null,
+          "consent_expires_at": null
+        }
+      }
+    ]
+  }
+}

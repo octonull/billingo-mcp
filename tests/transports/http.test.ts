@@ -320,7 +320,7 @@ describe('HTTP transport tool categories', () => {
   });
 
   it('lists every read tool without a category, as before', async () => {
-    expect(await toolNames(await post('/mcp', {}, toolsList))).toHaveLength(24);
+    expect(await toolNames(await post('/mcp', {}, toolsList))).toHaveLength(25);
   });
 
   it('rejects an unknown category with a 400 that lists the valid ones', async () => {

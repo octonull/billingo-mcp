@@ -1,6 +1,10 @@
 // src/tools/bank-transactions.ts
 import { z } from 'zod';
-import { bankTransactionSchema, paginatedSchema } from '../billingo/schemas.js';
+import {
+  bankSyncAccountSchema,
+  bankTransactionSchema,
+  paginatedSchema,
+} from '../billingo/schemas.js';
 import { isoDate } from '../billingo/dates.js';
 import {
   bankTransactionPairingStatusSchema,
@@ -102,4 +106,28 @@ const getBankTransaction = defineTool({
     jsonResult(await client.get(`/bank-sync/transactions/${String(id)}`)),
 });
 
-export const bankTransactionTools: AnyToolDefinition[] = [listBankTransactions, getBankTransaction];
+/** GET /bank-sync/accounts, per spec/billingo-3.0.15.json paths./bank-sync/accounts.get. */
+const listBankSyncAccounts = defineTool({
+  name: 'billingo_list_bank_sync_accounts',
+  scope: 'read',
+  title: 'List bank sync accounts',
+  description: [
+    PREVIEW,
+    'Lists the bank accounts connected to bank sync, with their balance. Their bank_account_id values are exactly the ids billingo_list_bank_transactions accepts in bank_account_id.',
+    'balance is the latest balance reported by the bank; depending on the bank it may already include pending items. synced_at is the last successful sync; the balance may be older.',
+    'connection.status is the state of the bank connection (inactive or disabled: the bank has to be connected again); connection.consent_expires_at is when the customer must renew the consent. They are independent: check both. Unknown values are null, never 0.',
+  ].join(' '),
+  inputSchema: { ...pageParamsShape },
+  outputSchema: paginatedSchema(bankSyncAccountSchema),
+  annotations: readOnly,
+  handler: async (query, { client }) => {
+    const result = await client.get<Paginated<unknown>>('/bank-sync/accounts', { query });
+    return jsonResult(result, summarizePage(result));
+  },
+});
+
+export const bankTransactionTools: AnyToolDefinition[] = [
+  listBankTransactions,
+  getBankTransaction,
+  listBankSyncAccounts,
+];

@@ -31,9 +31,9 @@ async function connect(allowWrite: boolean) {
 }
 
 describe('tool registry totals', () => {
-  it('registers exactly 51 tools, 24 read and 27 write', () => {
-    expect(allTools).toHaveLength(51);
-    expect(allTools.filter((t) => t.scope === 'read')).toHaveLength(24);
+  it('registers exactly 52 tools, 25 read and 27 write', () => {
+    expect(allTools).toHaveLength(52);
+    expect(allTools.filter((t) => t.scope === 'read')).toHaveLength(25);
     expect(allTools.filter((t) => t.scope === 'write')).toHaveLength(27);
   });
 
@@ -69,10 +69,10 @@ describe('serverInfo', () => {
 });
 
 describe('scope filtering over a real MCP connection', () => {
-  it('exposes only the 24 read tools by default', async () => {
+  it('exposes only the 25 read tools by default', async () => {
     const { client } = await connect(false);
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(24);
+    expect(tools).toHaveLength(25);
     expect(tools.every((t) => t.annotations?.readOnlyHint === true)).toBe(true);
   });
 
@@ -90,10 +90,10 @@ describe('scope filtering over a real MCP connection', () => {
     expect(names.has('billingo_guess_partner')).toBe(false);
   });
 
-  it('exposes all 51 tools when writes are allowed', async () => {
+  it('exposes all 52 tools when writes are allowed', async () => {
     const { client } = await connect(true);
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(51);
+    expect(tools).toHaveLength(52);
     expect(tools.map((t) => t.name)).toContain('billingo_create_document');
   });
 

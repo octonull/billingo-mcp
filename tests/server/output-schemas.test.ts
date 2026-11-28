@@ -92,6 +92,13 @@ const CASES: { tool: string; args: Record<string, unknown>; path: string; fixtur
     path: '/bank-sync/transactions/7',
     fixture: 'bank_transaction',
   },
+  // Not recorded live either: shaped after BankSyncAccount in the Billingo repository.
+  {
+    tool: 'billingo_list_bank_sync_accounts',
+    args: {},
+    path: '/bank-sync/accounts',
+    fixture: 'bank_sync_accounts',
+  },
   {
     tool: 'billingo_list_document_blocks',
     args: {},
