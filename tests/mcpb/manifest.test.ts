@@ -57,6 +57,7 @@ describe('mcpb manifest', () => {
     expect(Object.keys(env).sort()).toEqual([
       'BILLINGO_ALLOW_WRITE',
       'BILLINGO_API_KEY',
+      'BILLINGO_CONFIRM_WRITES',
       'BILLINGO_TOOL_CATEGORIES',
     ]);
   });

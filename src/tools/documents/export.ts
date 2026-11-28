@@ -1,6 +1,6 @@
 // src/tools/documents/export.ts
 import { z } from 'zod';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult } from '@modelcontextprotocol/server';
 import { isoDate } from '../../billingo/dates.js';
 import { defineTool, errorResult } from '../registry.js';
 import type { AnyToolDefinition } from '../registry.js';

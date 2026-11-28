@@ -7,7 +7,8 @@ Guidance for Claude Code (and any other coding agent) working in this repository
 The official Billingo MCP server: an [MCP](https://modelcontextprotocol.io) server exposing
 the [Billingo](https://billingo.hu) invoicing API (v3) as tools for LLM agents. It ships two
 transports — stdio (for desktop MCP clients) and stateless Streamable HTTP (for
-self-hosting) — and 51 tools (24 read, 27 write) covering organizations, partners,
+self-hosting), both built on MCP TypeScript SDK v2 (`serveStdio` / `createMcpHandler`) and
+serving protocol revision 2026-07-28 alongside 2025-era clients — and 51 tools (24 read, 27 write) covering organizations, partners,
 products, spendings, bank accounts, bank transactions (preview), document blocks, and documents (including NAV Online
 Számla reporting, exports, and the destructive/write tier).
 
@@ -106,6 +107,27 @@ to know a tool call is happening.
    "not ready" status (202 on the download endpoint). POST/PUT/DELETE are never retried,
    even on a network error or 5xx: a retried `POST /documents` would issue a second,
    separately NAV-reported invoice, which cannot be undone.
+
+## Safeguards on irreversible writes
+
+`src/tools/safeguards.ts` decides, per write tool, whether the user is asked to confirm
+(MCP elicitation: in-band `inputRequired` on 2026-07-28, the SDK's server→client shim
+on 2025-era stdio) and whether an identical repeat is refused (`DuplicateGuard`, 10
+minutes, per tenant = hash of the API key). `src/server.ts` applies both around the
+handler, so tool modules do not know about them. Rules that are easy to break:
+
+- **A new write tool that is destructive or not idempotent needs an entry** in
+  `SAFEGUARDS` (an empty `{}` is a valid decision); `tests/tools/safeguards.test.ts`
+  fails otherwise.
+- **The duplicate check runs before the confirmation**, so a user is never asked to
+  confirm a call that will then be refused. A failed call clears its entry: it issued
+  nothing, so a retry must go through.
+- **The HTTP transport owns one `DuplicateGuard` for the process**, because every request
+  builds a fresh server; a guard created inside `createServer` would never see a resend.
+- **Read tools get `client.withSignal(ctx.mcpReq.signal)`; writes never do.** Aborting a
+  POST after it was sent leaves it unknown whether Billingo issued the document.
+- A 2025-era HTTP request has no channel to ask on (stateless, no initialize on that
+  instance), so it proceeds without confirmation — by design, not a bug.
 
 ## Claude Desktop Extension (.mcpb)
 

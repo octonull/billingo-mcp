@@ -28,7 +28,8 @@
       "env": {
         "BILLINGO_API_KEY": "${user_config.api_key}",
         "BILLINGO_ALLOW_WRITE": "${user_config.allow_write}",
-        "BILLINGO_TOOL_CATEGORIES": "${user_config.tool_categories}"
+        "BILLINGO_TOOL_CATEGORIES": "${user_config.tool_categories}",
+        "BILLINGO_CONFIRM_WRITES": "${user_config.confirm_writes}"
       }
     }
   },
@@ -53,6 +54,13 @@
       "description": "Comma-separated; leave empty for all: organization, partners, products, spendings, bank_accounts, bank_transactions, document_blocks, documents.",
       "required": false,
       "default": ""
+    },
+    "confirm_writes": {
+      "type": "boolean",
+      "title": "Confirm irreversible actions",
+      "description": "On: before issuing, cancelling, sending or deleting, Claude Desktop shows you what will happen and waits for your OK. Off: Claude only asks in the chat.",
+      "required": false,
+      "default": true
     }
   },
   "tools_generated": true,

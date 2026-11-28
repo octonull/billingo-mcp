@@ -15,6 +15,15 @@ export function parseBooleanFlag(raw: string | undefined): boolean {
   return normalized === 'true' || normalized === '1';
 }
 
+/**
+ * The confirmation safeguard is on unless explicitly turned off: only "false", "0", "no"
+ * or "off" disable it, so a typo keeps the user in the loop.
+ */
+export function parseOptOutFlag(raw: string | undefined): boolean {
+  if (raw === undefined) return true;
+  return !['false', '0', 'no', 'off'].includes(raw.trim().toLowerCase());
+}
+
 /** Turns a zod error into a message naming the offending variable. */
 function describe(error: z.ZodError): string {
   return error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
@@ -25,6 +34,7 @@ const stdioSchema = z.object({
   BILLINGO_BASE_URL: z.url('must be a valid URL').default(DEFAULT_BASE_URL),
   BILLINGO_ALLOW_WRITE: z.string().optional(),
   BILLINGO_TOOL_CATEGORIES: z.string().optional(),
+  BILLINGO_CONFIRM_WRITES: z.string().optional(),
 });
 
 export interface StdioConfig {
@@ -33,6 +43,8 @@ export interface StdioConfig {
   allowWrite: boolean;
   /** Tool groups to register; undefined registers all of them. */
   categories: ToolCategory[] | undefined;
+  /** Ask the user before irreversible writes, where the client can (default true). */
+  confirmWrites: boolean;
 }
 
 function loadCategories(raw: string | undefined): ToolCategory[] | undefined {
@@ -54,6 +66,7 @@ export function loadStdioConfig(env: NodeJS.ProcessEnv): StdioConfig {
     baseUrl: parsed.data.BILLINGO_BASE_URL,
     allowWrite: parseBooleanFlag(parsed.data.BILLINGO_ALLOW_WRITE),
     categories: loadCategories(parsed.data.BILLINGO_TOOL_CATEGORIES),
+    confirmWrites: parseOptOutFlag(parsed.data.BILLINGO_CONFIRM_WRITES),
   };
 }
 
